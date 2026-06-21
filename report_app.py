@@ -1160,18 +1160,54 @@ class ReportApp(tk.Tk):
             ("RCP NAME",      12),("LOT ID",        9),("RCP MODIFY TIME",14),
             ("RCP SCAN TIME", 13),("SCAN END TIME", 13),("Log TS", 0),("Description", 0),
         ]
+        # Proportional column specs for grid-based table:
+        # (header_label, data_key, weight, minsize)
+        self._tbl_cols = [
+            ("#",               "id",              2,  28),
+            ("Time",            "time",            6,  90),
+            ("Tool id",         "Tool ID",         5,  70),
+            ("RCP name",        "RCP NAME",        8,  90),
+            ("Lot id",          "LOT ID",          5,  70),
+            ("RCP modify time", "RCP MODIFY TIME", 9, 110),
+            ("RCP scan time",   "RCP SCAN TIME",   9, 110),
+            ("Scan end time",   "SCAN END TIME",   9, 110),
+            ("Log ts",          "__log__",         5,  60),
+            ("Description",     "__desc__",       12, 100),
+        ]
         th = tk.Frame(page, bg=BG_DARK)
         th.pack(fill="x")
-        for label, w in self._col_defs:
-            kw = {"width": w} if w else {}
+        self._apply_table_cols(th)
+        # Fixed: del(0), sep(1), chk(2), sep(3), data cols start at 4
+        tk.Label(th, text="", bg=BG_DARK, width=4).grid(row=0, column=0)
+        tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=1, sticky="ns")
+        tk.Label(th, text="☐", font=("Arial",8,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
+                 anchor="center", padx=4, pady=6).grid(row=0, column=2)
+        tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=3, sticky="ns")
+        for i, (label, _, weight, _minsz) in enumerate(self._tbl_cols):
+            dc = i * 2 + 4
             tk.Label(th, text=label, font=("Arial",8,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
-                     anchor="w", padx=6, pady=6, **kw).pack(
-                         side="left", fill="x" if not w else None, expand=True if not w else False)
+                     anchor="w", padx=6, pady=6).grid(row=0, column=dc, sticky="ew")
+            if i < len(self._tbl_cols) - 1:
+                tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=dc+1, sticky="ns")
+        tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=4+len(self._tbl_cols)*2-1, sticky="ns")
+        tk.Label(th, text="", bg=BG_DARK, width=7).grid(row=0, column=4+len(self._tbl_cols)*2)
 
         _, self.issue_list_inner, _ = _make_scrollable(page, BG_LIGHT)
         self._selected_ids = set()
         self._show_empty_placeholder()
         return page
+
+    def _apply_table_cols(self, frame):
+        """Apply proportional grid column config to a table row/header frame."""
+        frame.columnconfigure(0, minsize=32,  weight=0)   # del btn
+        frame.columnconfigure(2, minsize=26,  weight=0)   # checkbox
+        for i, (_, _, w, ms) in enumerate(self._tbl_cols):
+            dc = i * 2 + 4
+            frame.columnconfigure(dc, weight=w, minsize=ms)
+            frame.columnconfigure(dc + 1, minsize=1, weight=0)  # vsep
+        frame.columnconfigure(3, minsize=1, weight=0)     # sep after chk
+        last_export_col = 4 + len(self._tbl_cols) * 2
+        frame.columnconfigure(last_export_col, minsize=58, weight=0)  # export btn
 
     def _show_empty_placeholder(self):
         tk.Label(self.issue_list_inner, text="No records yet. Submit a report to see data here.",
@@ -1219,77 +1255,97 @@ class ReportApp(tk.Tk):
             self._show_empty_placeholder(); return
 
         for i, rec in enumerate(reversed(records)):
-            bg = BG_CARD if i%2==0 else BG_LIGHT
-            selected = rec["id"] in self._selected_ids
-            if selected: bg = "#EFF6FF"
+            bg = BG_CARD if i % 2 == 0 else BG_LIGHT
+            if rec["id"] in self._selected_ids: bg = "#EFF6FF"
+
             row = tk.Frame(self.issue_list_inner, bg=bg)
             row.pack(fill="x")
+            self._apply_table_cols(row)
 
-            # 刪除
-            tk.Button(row, text="🗑", font=("Arial",10), bg=bg, fg="#C0392B",
-                      relief="flat", cursor="hand2", borderwidth=0,
-                      activebackground=bg, activeforeground=ACCENT,
-                      command=lambda rid=rec["id"]: self._delete_record(rid)).pack(side="left", padx=(6,1), pady=5)
-            # 勾選
-            chk_var = tk.BooleanVar(value=selected)
-            chk = tk.Checkbutton(row, variable=chk_var, bg=bg, relief="flat",
-                                  activebackground=bg, cursor="hand2",
-                                  command=lambda v=chk_var, rid=rec["id"]: self._toggle_select(v, rid))
-            chk.pack(side="left", padx=2)
+            # Delete btn (col 0)
+            del_btn = tk.Button(row, text="🗑", font=("Arial",9), bg=bg, fg=DANGER,
+                                relief="flat", cursor="hand2", borderwidth=0,
+                                activebackground=bg, activeforeground=ACCENT,
+                                command=lambda rid=rec["id"]: self._delete_record(rid))
+            del_btn.grid(row=0, column=0, padx=(4,2), pady=4)
+            tk.Frame(row, bg=BORDER, width=1).grid(row=0, column=1, sticky="ns")
 
-            cd = self._col_defs
-            for txt, w, fg, font_str in [
-                (f"#{rec['id']}",  cd[2][1], TEXT_MUTED, "Arial 8"),
-                (rec["time"],      cd[3][1], TEXT_MID,   "Arial 8"),
-            ]:
-                tk.Label(row, text=txt or "—", font=font_str, bg=bg, fg=fg, anchor="w",
-                         width=w, padx=6, pady=7).pack(side="left")
-            for txt, w, fg, font_str in [
-                (rec.get("Tool ID","—"),         cd[4][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("RCP NAME","—"),         cd[5][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("LOT ID","—"),           cd[6][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("RCP MODIFY TIME","—"),  cd[7][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("RCP SCAN TIME","—"),    cd[8][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("SCAN END TIME","—"),    cd[9][1],  TEXT_DARK,  "Courier 8"),
-            ]:
-                tk.Label(row, text=txt or "—", font=font_str, bg=bg, fg=fg, anchor="w",
-                         width=w, padx=6, pady=7).pack(side="left")
+            # Checkbox (col 2)
+            chk_var = tk.BooleanVar(value=rec["id"] in self._selected_ids)
+            tk.Checkbutton(row, variable=chk_var, bg=bg, relief="flat",
+                           activebackground=bg, cursor="hand2",
+                           command=lambda v=chk_var, rid=rec["id"]: self._toggle_select(v, rid)
+                           ).grid(row=0, column=2, padx=2, pady=4)
+            tk.Frame(row, bg=BORDER, width=1).grid(row=0, column=3, sticky="ns")
 
-            # Log TS pills
-            log_cell = tk.Frame(row, bg=bg); log_cell.pack(side="left", fill="x", expand=True, padx=4)
-            log_kws = rec.get("log_keywords",[])
-            if log_kws:
-                pf = tk.Frame(log_cell, bg=bg); pf.pack(side="left", pady=4)
-                for kw in log_kws[:3]:
-                    pill = tk.Label(pf, text=kw, font=("Arial",7,"bold"),
-                                    bg=KW_TAG_BG, fg=TEXT_LIGHT, padx=4, pady=1, cursor="hand2")
-                    pill.pack(side="left", padx=(0,3))
-                    pill.bind("<Button-1>", lambda e, r=rec: self._show_log_detail(r))
-                if len(log_kws)>3:
-                    tk.Label(pf, text=f"+{len(log_kws)-3}", font=("Arial",7), bg=bg, fg=TEXT_MUTED).pack(side="left")
-            else:
-                tk.Label(log_cell, text="—", font=("Arial",8), bg=bg, fg=TEXT_MUTED, pady=7).pack(side="left")
+            # Data columns
+            data_values = {
+                "id":              f"#{rec['id']}",
+                "time":            rec.get("time","—"),
+                "Tool ID":         rec.get("Tool ID","—"),
+                "RCP NAME":        rec.get("RCP NAME","—"),
+                "LOT ID":          rec.get("LOT ID","—"),
+                "RCP MODIFY TIME": rec.get("RCP MODIFY TIME","—"),
+                "RCP SCAN TIME":   rec.get("RCP SCAN TIME","—"),
+                "SCAN END TIME":   rec.get("SCAN END TIME","—"),
+            }
+            mono_keys = {"Tool ID","RCP NAME","LOT ID","RCP MODIFY TIME","RCP SCAN TIME","SCAN END TIME"}
+            fg_map    = {"id": TEXT_MUTED, "time": TEXT_MID}
 
-            # 描述 + 標籤
-            n_img = len(rec["images"])
-            desc_short = rec["desc"][:35]+("…" if len(rec["desc"])>35 else "")
-            desc_f = tk.Frame(row, bg=bg); desc_f.pack(side="left", fill="x", expand=True)
-            tags = rec.get("tags",[])
-            if tags:
-                tag_f = tk.Frame(desc_f, bg=bg); tag_f.pack(anchor="w")
-                for tag in tags[:3]:
-                    tk.Label(tag_f, text=tag, font=("Arial",6), bg="#EDE9FE", fg="#7C3AED",
-                             padx=4, pady=0).pack(side="left", padx=(0,2))
-            desc_lbl = tk.Label(desc_f, text=desc_short+(f"  📷{n_img}" if n_img else ""),
-                                 font=("Arial",8,"underline"), bg=bg, fg=INFO,
-                                 anchor="w", padx=6, pady=3, cursor="hand2")
-            desc_lbl.pack(side="left")
-            desc_lbl.bind("<Button-1>", lambda e, r=rec: self._show_issue_detail(r))
+            for ci, (_, key, _, _) in enumerate(self._tbl_cols):
+                dc = ci * 2 + 4
 
-            # 匯出按鈕
+                if key == "__log__":
+                    log_kws = rec.get("log_keywords", [])
+                    cell = tk.Frame(row, bg=bg)
+                    cell.grid(row=0, column=dc, sticky="ew", padx=4, pady=3)
+                    if log_kws:
+                        for kw in log_kws[:3]:
+                            pill = tk.Label(cell, text=kw, font=("Arial",6,"bold"),
+                                            bg=KW_TAG_BG, fg=TEXT_LIGHT, padx=3, pady=1, cursor="hand2")
+                            pill.pack(side="left", padx=(0,2))
+                            pill.bind("<Button-1>", lambda e, r=rec: self._show_log_detail(r))
+                        if len(log_kws) > 3:
+                            tk.Label(cell, text=f"+{len(log_kws)-3}", font=("Arial",6),
+                                     bg=bg, fg=TEXT_MUTED).pack(side="left")
+                    else:
+                        tk.Label(cell, text="—", font=("Arial",8), bg=bg, fg=TEXT_MUTED).pack(side="left")
+
+                elif key == "__desc__":
+                    n_img = len(rec.get("images",[]))
+                    desc_short = rec["desc"][:40] + ("…" if len(rec["desc"]) > 40 else "")
+                    cell = tk.Frame(row, bg=bg)
+                    cell.grid(row=0, column=dc, sticky="ew", padx=2, pady=2)
+                    tags = rec.get("tags", [])
+                    if tags:
+                        tf = tk.Frame(cell, bg=bg); tf.pack(anchor="w")
+                        for tag in tags[:3]:
+                            tk.Label(tf, text=tag, font=("Arial",6), bg="#EDE9FE", fg="#7C3AED",
+                                     padx=3, pady=0).pack(side="left", padx=(0,2))
+                    dl = tk.Label(cell, text=desc_short + (f"  📷{n_img}" if n_img else ""),
+                                  font=("Arial",8,"underline"), bg=bg, fg=INFO,
+                                  anchor="w", padx=4, pady=2, cursor="hand2")
+                    dl.pack(side="left")
+                    dl.bind("<Button-1>", lambda e, r=rec: self._show_issue_detail(r))
+
+                else:
+                    val = data_values.get(key, "—") or "—"
+                    font_f = "Courier" if key in mono_keys else "Arial"
+                    fg_c   = fg_map.get(key, TEXT_DARK)
+                    tk.Label(row, text=val, font=(font_f, 8), bg=bg, fg=fg_c,
+                             anchor="w", padx=5, pady=6).grid(row=0, column=dc, sticky="ew")
+
+                # vertical separator after each col except last data col
+                if ci < len(self._tbl_cols) - 1:
+                    tk.Frame(row, bg=BORDER, width=1).grid(row=0, column=dc+1, sticky="ns")
+
+            # last separator + export btn
+            last_sep = 4 + len(self._tbl_cols) * 2 - 1
+            tk.Frame(row, bg=BORDER, width=1).grid(row=0, column=last_sep, sticky="ns")
+            export_col = last_sep + 1
             tk.Button(row, text="⬇ HTML", font=("Arial",7,"bold"),
                       bg="#EFF6FF", fg=INFO, relief="flat", padx=6, pady=3, cursor="hand2",
-                      command=lambda r=rec: self._export_one(r)).pack(side="right", padx=6)
+                      command=lambda r=rec: self._export_one(r)).grid(row=0, column=export_col, padx=4, pady=4)
 
             tk.Frame(self.issue_list_inner, bg=BORDER, height=1).pack(fill="x")
 

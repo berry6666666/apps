@@ -1174,16 +1174,23 @@ class ReportApp(tk.Tk):
             ("Log ts",          "__log__",         5,  60),
             ("Description",     "__desc__",       12, 100),
         ]
-        th = tk.Frame(page, bg=BG_DARK)
-        th.pack(fill="x")
+        # Put scrollbar, header, and rows all in the same container so they
+        # share exactly the same usable width → column grid lines align perfectly.
+        table_outer = tk.Frame(page, bg=BG_LIGHT)
+        table_outer.pack(fill="both", expand=True)
+
+        vsb = ttk.Scrollbar(table_outer, orient="vertical")
+        vsb.pack(side="right", fill="y")
+
+        th = tk.Frame(table_outer, bg=BG_DARK)
+        th.pack(side="top", fill="x")
         self._apply_table_cols(th)
-        # Fixed: del(0), sep(1), chk(2), sep(3), data cols start at 4
         tk.Label(th, text="", bg=BG_DARK, width=4).grid(row=0, column=0)
         tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=1, sticky="ns")
         tk.Label(th, text="☐", font=("Arial",8,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                  anchor="center", padx=4, pady=6).grid(row=0, column=2)
         tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=3, sticky="ns")
-        for i, (label, _, weight, _minsz) in enumerate(self._tbl_cols):
+        for i, (label, _, _w, _ms) in enumerate(self._tbl_cols):
             dc = i * 2 + 4
             tk.Label(th, text=label, font=("Arial",8,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                      anchor="w", padx=6, pady=6).grid(row=0, column=dc, sticky="ew")
@@ -1192,7 +1199,14 @@ class ReportApp(tk.Tk):
         tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=4+len(self._tbl_cols)*2-1, sticky="ns")
         tk.Label(th, text="", bg=BG_DARK, width=7).grid(row=0, column=4+len(self._tbl_cols)*2)
 
-        _, self.issue_list_inner, _ = _make_scrollable(page, BG_LIGHT)
+        canvas = tk.Canvas(table_outer, bg=BG_LIGHT, highlightthickness=0, yscrollcommand=vsb.set)
+        vsb.configure(command=canvas.yview)
+        canvas.pack(side="left", fill="both", expand=True)
+        self.issue_list_inner = tk.Frame(canvas, bg=BG_LIGHT)
+        _wid = canvas.create_window((0, 0), window=self.issue_list_inner, anchor="nw")
+        self.issue_list_inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(_wid, width=e.width))
+        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
         self._selected_ids = set()
         self._show_empty_placeholder()
         return page

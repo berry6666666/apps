@@ -1,6 +1,6 @@
 """
-報案系統 v4.0 — 強化版
-新增：搜尋篩選 / HTML 匯出 / 並排 Diff / 鍵盤快捷鍵
+RCP Issue Reporter v4.0
+Features: search/filter, HTML export, side-by-side diff, keyboard shortcuts
 """
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
@@ -126,7 +126,7 @@ def load_keywords():
 def _write_default_keywords():
     try:
         with open(KEYWORDS_FILE, "w", encoding="utf-8") as f:
-            f.write("# Log TS 關鍵字清單 — 每行一個，# 開頭為註解\n\n")
+            f.write("# Log TS Keyword List — one keyword per line, # for comments\n\n")
             for kw in _DEFAULT_KEYWORDS: f.write(kw + "\n")
     except: pass
 
@@ -229,29 +229,29 @@ def export_html(rec):
         b64 = base64.b64encode(buf.getvalue()).decode()
         img_html += f'<div style="display:inline-block;margin:6px;text-align:center"><img src="data:image/png;base64,{b64}" style="border-radius:6px;border:1px solid #ddd"><br><small style="color:#666">{name}</small></div>'
     html = f"""<!DOCTYPE html>
-<html lang="zh-TW"><head><meta charset="UTF-8">
-<title>Issue #{rec['id']} 報告</title>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Issue #{rec['id']} Report</title>
 <style>
-  body{{font-family:-apple-system,'PingFang TC',sans-serif;background:#F5F3EF;color:#1B2B4B;margin:0;padding:24px}}
+  body{{font-family:-apple-system,sans-serif;background:#F5F3EF;color:#1B2B4B;margin:0;padding:24px}}
   .card{{background:#fff;border-radius:10px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:4px solid #C4962A}}
   h1{{font-size:22px;margin:0 0 4px}} h2{{font-size:13px;font-weight:700;margin:0 0 12px;color:#C4962A;text-transform:uppercase;letter-spacing:.05em}}
   table{{width:100%;border-collapse:collapse}} th{{background:#1B2B4B;color:#fff;padding:8px 10px;text-align:left;font-size:13px}}
   .badge{{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700}}
 </style></head><body>
 <div class="card">
-  <h1>⚑ Issue #{rec['id']} 報案報告</h1>
-  <div style="color:#8A9AB0;font-size:13px">{rec['time']} &nbsp;｜&nbsp; {rec.get('golden_file','—')} vs {rec.get('issue_file','—')}</div>
+  <h1>⚑ Issue #{rec['id']} Report</h1>
+  <div style="color:#8A9AB0;font-size:13px">{rec['time']} &nbsp;|&nbsp; {rec.get('golden_file','—')} vs {rec.get('issue_file','—')}</div>
   <div style="margin-top:8px">
     {''.join(f'<span class="badge" style="background:#1B2B4B;color:#F0D080;margin-right:6px">{t}</span>' for t in rec.get('tags',[]))}
   </div>
 </div>
-<div class="card"><h2>RCP 欄位比對</h2>
-  <table><tr><th></th><th>欄位</th><th>Golden</th><th>Issue</th></tr>{diff_html}</table>
+<div class="card"><h2>RCP Field Comparison</h2>
+  <table><tr><th></th><th>Field</th><th>Golden</th><th>Issue</th></tr>{diff_html}</table>
 </div>
-<div class="card"><h2>Issue 描述</h2><p style="font-size:14px;line-height:1.7">{rec['desc']}</p></div>
-{'<div class="card"><h2>Log TS 命中（' + str(len(rec.get("log_hits",[]))) + ' 筆）</h2>' + log_html + '</div>' if rec.get('log_hits') else ''}
-{'<div class="card"><h2>截圖附件</h2>' + img_html + '</div>' if rec.get('images') else ''}
-<div style="text-align:center;color:#aaa;font-size:12px;margin-top:16px">報案系統 v4.0 · 匯出時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
+<div class="card"><h2>Issue Description</h2><p style="font-size:14px;line-height:1.7">{rec['desc']}</p></div>
+{'<div class="card"><h2>Log TS Hits (' + str(len(rec.get("log_hits",[]))) + ')</h2>' + log_html + '</div>' if rec.get('log_hits') else ''}
+{'<div class="card"><h2>Screenshots</h2>' + img_html + '</div>' if rec.get('images') else ''}
+<div style="text-align:center;color:#aaa;font-size:12px;margin-top:16px">RCP Issue Reporter v4.0 · Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
 </body></html>"""
     with open(fname, "w", encoding="utf-8") as f:
         f.write(html)
@@ -279,9 +279,9 @@ def _make_scrollable(parent, bg):
 class ReportApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("報案系統 v4.0 — RCP Issue Reporter")
-        self.geometry("1520x920")
-        self.minsize(1200, 750)
+        self.title("RCP Issue Reporter v4.0")
+        self.geometry("1400x860")
+        self.minsize(900, 600)
         self.configure(bg=BG_DARK)
 
         self.golden_data   = {}
@@ -322,28 +322,28 @@ class ReportApp(tk.Tk):
 
     # ── Sidebar ────────────────────────────────────────────────
     def _build_ui(self):
-        self.sidebar = tk.Frame(self, bg=BG_PANEL, width=220)
+        self.sidebar = tk.Frame(self, bg=BG_PANEL, width=190)
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
         logo_f = tk.Frame(self.sidebar, bg=BG_PANEL, pady=18)
         logo_f.pack(fill="x")
         tk.Label(logo_f, text="⚑", font=("Arial", 24), bg=BG_PANEL, fg=ACCENT).pack()
-        tk.Label(logo_f, text="報案系統", font=("Arial", 13, "bold"), bg=BG_PANEL, fg=TEXT_LIGHT).pack()
+        tk.Label(logo_f, text="Issue Reporter", font=("Arial", 13, "bold"), bg=BG_PANEL, fg=TEXT_LIGHT).pack()
         tk.Label(logo_f, text="RCP Issue Reporter v4.0", font=("Arial", 7), bg=BG_PANEL, fg=TEXT_MUTED).pack(pady=(2,0))
         tk.Frame(self.sidebar, bg="#374D65", height=1).pack(fill="x", padx=16, pady=6)
 
         self.nav_buttons = {}
         self.issue_count_lbl = None
         for key, icon, label, shortcut in [
-            ("main",       "⊞",  "報案作業",  "F1"),
-            ("tool_issue", "☰",  "Tool Issue", "F2"),
+            ("main",       "⊞",  "File Report", "F1"),
+            ("tool_issue", "☰",  "Tool Issue",  "F2"),
         ]:
             self.nav_buttons[key] = self._make_nav_btn(key, icon, label, shortcut)
 
         tk.Frame(self.sidebar, bg="#374D65", height=1).pack(fill="x", padx=16, pady=8)
-        tk.Label(self.sidebar, text="快捷鍵", font=("Arial", 8, "bold"), bg=BG_PANEL, fg=TEXT_MUTED).pack(anchor="w", padx=16)
-        for txt in ["F1  報案作業", "F2  Tool Issue", "Ctrl+R  開始比對", "Ctrl+L  選 Log", "Ctrl+↵  提交報案", "Ctrl+E  匯出報告"]:
+        tk.Label(self.sidebar, text="Shortcuts", font=("Arial", 8, "bold"), bg=BG_PANEL, fg=TEXT_MUTED).pack(anchor="w", padx=16)
+        for txt in ["F1  File Report", "F2  Tool Issue", "Ctrl+R  Run Compare", "Ctrl+L  Pick Log", "Ctrl+↵  Submit", "Ctrl+E  Export"]:
             tk.Label(self.sidebar, text=txt, font=("Arial", 7), bg=BG_PANEL, fg="#3D5270").pack(anchor="w", padx=20, pady=1)
 
         tk.Label(self.sidebar, text="v4.0.0", font=("Arial", 8), bg=BG_PANEL, fg="#3D5270").pack(side="bottom", pady=10)
@@ -531,38 +531,32 @@ class ReportApp(tk.Tk):
         page = tk.Frame(self.content, bg=BG_LIGHT)
         hdr = tk.Frame(page, bg=BG_DARK, height=54)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
-        tk.Label(hdr, text="報案作業", font=("Arial", 15, "bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=24, pady=14)
-        tk.Label(hdr, text="RCP 比對 ＋ 報案資訊　｜　Auto Log TS", font=("Arial", 10), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
+        tk.Label(hdr, text="File Report", font=("Arial", 15, "bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=24, pady=14)
+        tk.Label(hdr, text="RCP Compare + Report Info  |  Auto Log TS", font=("Arial", 10), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
 
-        body = tk.Frame(page, bg=BG_LIGHT)
-        body.pack(fill="both", expand=True)
-        body.columnconfigure(0, weight=5)
-        body.columnconfigure(1, weight=4)
-        body.rowconfigure(0, weight=1)
+        pane = tk.PanedWindow(page, orient="horizontal", bg=BORDER, sashwidth=4, sashrelief="flat")
+        pane.pack(fill="both", expand=True)
 
-        left_col  = self._build_left_column(body)
-        right_col = self._build_log_panel(body)
-        left_col.grid(row=0, column=0, sticky="nsew")
-        tk.Frame(body, bg=BORDER, width=1).grid(row=0, column=0, sticky="nse")
-        right_col.grid(row=0, column=1, sticky="nsew")
+        left_col  = self._build_left_column(pane)
+        right_col = self._build_log_panel(pane)
+        pane.add(left_col,  minsize=420, stretch="always")
+        pane.add(right_col, minsize=280, stretch="always")
         return page
 
     # ── 左欄：RCP比對 + 報案資訊 ──────────────────────────────
     def _build_left_column(self, parent):
         col = tk.Frame(parent, bg=BG_LIGHT)
-        col.rowconfigure(0, weight=3)
-        col.rowconfigure(1, weight=2)
-        col.columnconfigure(0, weight=1)
-        self._build_compare_panel(col).grid(row=0, column=0, sticky="nsew")
-        tk.Frame(col, bg=BORDER, height=1).grid(row=0, column=0, sticky="sew")
-        self._build_screenshot_panel(col).grid(row=1, column=0, sticky="nsew")
+        compare = self._build_compare_panel(col)
+        compare.pack(fill="both", expand=True)
+        tk.Frame(col, bg=BORDER, height=1).pack(fill="x")
+        self._build_screenshot_panel(col).pack(fill="both", expand=True)
         return col
 
     def _build_compare_panel(self, parent):
         panel = tk.Frame(parent, bg=BG_LIGHT)
         shdr = tk.Frame(panel, bg=SH_COMPARE, height=38)
         shdr.pack(fill="x"); shdr.pack_propagate(False)
-        tk.Label(shdr, text="⊞  RCP 比對", font=("Arial", 11, "bold"), bg=SH_COMPARE, fg=TEXT_LIGHT).pack(side="left", padx=16, pady=8)
+        tk.Label(shdr, text="⊞  RCP Compare", font=("Arial", 11, "bold"), bg=SH_COMPARE, fg=TEXT_LIGHT).pack(side="left", padx=16, pady=8)
 
         canvas = tk.Canvas(panel, bg=BG_LIGHT, highlightthickness=0)
         vsb = ttk.Scrollbar(panel, orient="vertical", command=canvas.yview)
@@ -578,12 +572,12 @@ class ReportApp(tk.Tk):
         cards_row = tk.Frame(inner, bg=BG_LIGHT)
         cards_row.pack(fill="x", padx=pad, pady=(10,6))
         cards_row.columnconfigure(0, weight=1); cards_row.columnconfigure(1, weight=1)
-        self.golden_card = self._build_rcp_card(cards_row, "GOLDEN RCP", "基準", SUCCESS, 0)
-        self.issue_card  = self._build_rcp_card(cards_row, "ISSUE RCP",  "問題", ACCENT,  1)
+        self.golden_card = self._build_rcp_card(cards_row, "GOLDEN RCP", "Baseline", SUCCESS, 0)
+        self.issue_card  = self._build_rcp_card(cards_row, "ISSUE RCP",  "Issue",    ACCENT,  1)
 
         btn_row = tk.Frame(inner, bg=BG_LIGHT)
         btn_row.pack(fill="x", padx=pad, pady=(2,6))
-        tk.Button(btn_row, text="▶ 開始比對  Ctrl+R",
+        tk.Button(btn_row, text="▶ Run Compare  Ctrl+R",
                   font=("Arial", 9, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                   relief="flat", padx=16, pady=6, cursor="hand2",
                   activebackground=ACCENT, activeforeground=TEXT_LIGHT,
@@ -597,7 +591,7 @@ class ReportApp(tk.Tk):
         self.compare_status.pack(side="left", padx=8)
         leg = tk.Frame(btn_row, bg=BG_LIGHT)
         leg.pack(side="right")
-        for dot_c, txt in [(DOT_GREEN,"一致"),(DOT_YELLOW,"不一致")]:
+        for dot_c, txt in [(DOT_GREEN,"Match"),(DOT_YELLOW,"Mismatch")]:
             lf = tk.Frame(leg, bg=BG_LIGHT); lf.pack(side="left", padx=4)
             tk.Label(lf, text="●", font=("Arial", 9), bg=BG_LIGHT, fg=dot_c).pack(side="left")
             tk.Label(lf, text=txt, font=("Arial", 7), bg=BG_LIGHT, fg=TEXT_MID).pack(side="left")
@@ -605,13 +599,13 @@ class ReportApp(tk.Tk):
         diff_hdr = tk.Frame(inner, bg=BG_DARK)
         diff_hdr.pack(fill="x", padx=pad)
         tk.Label(diff_hdr, text="", bg=BG_DARK, width=2, padx=4, pady=5).pack(side="left")
-        for txt, w in [("欄位",14),("Golden",18),("Issue",18)]:
+        for txt, w in [("Field",14),("Golden",18),("Issue",18)]:
             tk.Label(diff_hdr, text=txt, font=("Arial", 8, "bold"),
                      bg=BG_DARK, fg=TEXT_LIGHT, anchor="w", width=w, padx=6, pady=5).pack(side="left")
 
         self.diff_frame = tk.Frame(inner, bg=BG_LIGHT)
         self.diff_frame.pack(fill="x", padx=pad, pady=(0,10))
-        tk.Label(self.diff_frame, text="載入兩個 RCP 後點選「開始比對」",
+        tk.Label(self.diff_frame, text="Load two RCP files then click Run Compare",
                  font=("Arial", 9), bg=BG_LIGHT, fg=TEXT_MUTED, pady=18).pack()
         return panel
 
@@ -623,12 +617,12 @@ class ReportApp(tk.Tk):
         inner.pack(fill="both", expand=True)
         tk.Label(inner, text=title, font=("Arial", 10, "bold"), bg=BG_CARD, fg=TEXT_DARK).pack(anchor="w")
         tk.Label(inner, text=subtitle, font=("Arial", 7), bg=BG_CARD, fg=TEXT_MUTED).pack(anchor="w", pady=(1,5))
-        file_var = tk.StringVar(value="尚未選擇")
+        file_var = tk.StringVar(value="Not selected")
         row = tk.Frame(inner, bg=BG_CARD); row.pack(fill="x")
         tk.Label(row, textvariable=file_var, font=("Arial", 7), bg=BG_INPUT, fg=TEXT_MID, anchor="w",
                  padx=5, pady=3, width=14).pack(side="left", fill="x", expand=True)
         tag = "golden" if col==0 else "issue"
-        tk.Button(row, text="選擇", font=("Arial", 7, "bold"),
+        tk.Button(row, text="Select", font=("Arial", 7, "bold"),
                   bg=color, fg=TEXT_LIGHT if color!=SUCCESS else "#0D4A2E",
                   relief="flat", padx=6, pady=3, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
@@ -641,8 +635,8 @@ class ReportApp(tk.Tk):
         return card
 
     def _pick_rcp_file(self, card, tag):
-        path = filedialog.askopenfilename(title=f"選擇 {tag.upper()} RCP 檔案",
-                                          filetypes=[("文字檔案","*.txt"),("所有檔案","*.*")])
+        path = filedialog.askopenfilename(title=f"Select {tag.upper()} RCP File",
+                                          filetypes=[("Text files","*.txt"),("All files","*.*")])
         if not path: return
         try:    raw = open(path, "r", encoding="utf-8-sig").read()
         except: raw = open(path, "r", encoding="big5", errors="replace").read()
@@ -652,20 +646,20 @@ class ReportApp(tk.Tk):
         card._preview.configure(state="normal")
         card._preview.delete("1.0", "end")
         for f in RCP_FIELDS:
-            card._preview.insert("end", f"{f}:\n  {card._data.get(f) or '（未找到）'}\n\n")
+            card._preview.insert("end", f"{f}:\n  {card._data.get(f) or '(not found)'}\n\n")
         card._preview.configure(state="disabled")
         if tag == "golden": self.golden_data = card._data
         else:               self.issue_data  = card._data
 
     def _run_compare(self):
         if not self.golden_data and not self.issue_data:
-            messagebox.showwarning("提示", "請先載入至少一個 RCP 檔案。"); return
+            messagebox.showwarning("Notice", "Please load at least one RCP file."); return
         rows = diff_dicts(self.golden_data, self.issue_data)
         for w in self.diff_frame.winfo_children(): w.destroy()
         active  = [r for r in rows if r[3] != "empty"]
         n_match = sum(1 for r in active if r[3]=="match")
         n_miss  = sum(1 for r in active if r[3]=="mismatch")
-        self.compare_status.configure(text=f"● {n_match} 一致　● {n_miss} 不一致",
+        self.compare_status.configure(text=f"● {n_match} Match  ● {n_miss} Mismatch",
                                        fg=ACCENT if n_miss else DOT_GREEN)
         for i, (key, g_val, i_val, status) in enumerate(rows):
             bg = BG_CARD if i%2==0 else BG_LIGHT
@@ -687,16 +681,16 @@ class ReportApp(tk.Tk):
         g_raw = getattr(self.golden_card, "_raw", "")
         i_raw = getattr(self.issue_card,  "_raw", "")
         if not g_raw and not i_raw:
-            messagebox.showinfo("提示", "請先載入 RCP 檔案。"); return
+            messagebox.showinfo("Notice", "Please load RCP files first."); return
         win = tk.Toplevel(self)
-        win.title("並排 Diff — Golden vs Issue")
+        win.title("Side-by-Side Diff — Golden vs Issue")
         win.geometry("1100x720")
         win.configure(bg=BG_DARK)
         hdr = tk.Frame(win, bg=BG_DARK)
         hdr.pack(fill="x")
-        tk.Label(hdr, text="並排 RCP 文字比較", font=("Arial",13,"bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=20, pady=10)
-        tk.Label(hdr, text="黃色 = 僅本側有此行  ｜  紅色 = 兩側行不一致", font=("Arial",9), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
-        tk.Button(hdr, text="關閉", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT, relief="flat",
+        tk.Label(hdr, text="Side-by-Side RCP Diff", font=("Arial",13,"bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=20, pady=10)
+        tk.Label(hdr, text="Yellow = line only on this side  |  Red = lines differ", font=("Arial",9), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
+        tk.Button(hdr, text="Close", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT, relief="flat",
                   padx=12, pady=5, command=win.destroy).pack(side="right", padx=16, pady=8)
 
         pane = tk.PanedWindow(win, orient="horizontal", bg=BG_DARK, sashwidth=4, sashrelief="flat")
@@ -736,7 +730,7 @@ class ReportApp(tk.Tk):
         panel = tk.Frame(parent, bg=BG_LIGHT)
         shdr = tk.Frame(panel, bg=SH_REPORT, height=34)
         shdr.pack(fill="x"); shdr.pack_propagate(False)
-        tk.Label(shdr, text="✎  報案資訊", font=("Arial", 10, "bold"), bg=SH_REPORT, fg=TEXT_LIGHT).pack(side="left", padx=14, pady=7)
+        tk.Label(shdr, text="✎  Report Info", font=("Arial", 10, "bold"), bg=SH_REPORT, fg=TEXT_LIGHT).pack(side="left", padx=14, pady=7)
 
         canvas = tk.Canvas(panel, bg=BG_LIGHT, highlightthickness=0)
         vsb = ttk.Scrollbar(panel, orient="vertical", command=canvas.yview)
@@ -753,36 +747,36 @@ class ReportApp(tk.Tk):
         meta_card = tk.Frame(inner, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         meta_card.pack(fill="x", padx=pad, pady=(10,6))
         mi = tk.Frame(meta_card, bg=BG_CARD, padx=10, pady=8); mi.pack(fill="x")
-        tk.Label(mi, text="標籤（逗號分隔）", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w", pady=(0,2))
+        tk.Label(mi, text="Tags (comma-separated)", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w", pady=(0,2))
         self.tags_entry = tk.Entry(mi, font=("Arial", 9), bg=BG_INPUT, fg=TEXT_DARK, relief="flat",
                                    highlightthickness=1, highlightcolor=ACCENT, highlightbackground=BORDER)
         self.tags_entry.pack(fill="x")
-        self.tags_entry.insert(0, "例：Alarm, Process, Hardware")
+        self.tags_entry.insert(0, "e.g. Alarm, Process, Hardware")
 
-        self._sec(inner, "Issue 描述", pad)
+        self._sec(inner, "Issue Description", pad)
         desc_card = tk.Frame(inner, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         desc_card.pack(fill="x", padx=pad, pady=(0,8))
         di = tk.Frame(desc_card, bg=BG_CARD, padx=10, pady=8); di.pack(fill="x")
-        tk.Label(di, text="詳細描述問題現象、發生時間、重現步驟：", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w")
+        tk.Label(di, text="Describe symptoms, time, and reproduction steps:", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w")
         self.desc_text = tk.Text(di, height=5, font=("Arial", 9), bg=BG_INPUT, fg=TEXT_DARK,
                                   relief="flat", wrap="word", padx=7, pady=5,
                                   highlightthickness=1, highlightcolor=ACCENT,
                                   highlightbackground=BORDER, insertbackground=ACCENT)
         self.desc_text.pack(fill="x", pady=(5,0))
-        self.desc_text.insert("end", "例如：設備在測試時出現異常…")
+        self.desc_text.insert("end", "e.g. Device showed abnormal behavior during testing...")
         self.desc_text.bind("<FocusIn>", self._clear_placeholder)
 
-        self._sec(inner, "附加截圖", pad)
+        self._sec(inner, "Screenshots", pad)
         img_card = tk.Frame(inner, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         img_card.pack(fill="x", padx=pad, pady=(0,8))
         img_top = tk.Frame(img_card, bg=BG_CARD, padx=10, pady=7); img_top.pack(fill="x")
-        tk.Button(img_top, text="＋ 上傳截圖", font=("Arial", 8, "bold"),
+        tk.Button(img_top, text="+ Upload Screenshot", font=("Arial", 8, "bold"),
                   bg=ACCENT, fg=TEXT_LIGHT, relief="flat", padx=10, pady=4, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._upload_images).pack(side="left")
-        self.img_count_lbl = tk.Label(img_top, text="尚未上傳", font=("Arial", 7), bg=BG_CARD, fg=TEXT_MUTED)
+        self.img_count_lbl = tk.Label(img_top, text="None uploaded", font=("Arial", 7), bg=BG_CARD, fg=TEXT_MUTED)
         self.img_count_lbl.pack(side="left", padx=6)
-        tk.Button(img_top, text="清除", font=("Arial", 7), bg=BG_LIGHT, fg=TEXT_MID,
+        tk.Button(img_top, text="Clear", font=("Arial", 7), bg=BG_LIGHT, fg=TEXT_MID,
                   relief="flat", padx=6, pady=3, cursor="hand2",
                   command=self._clear_images).pack(side="right")
         self.img_grid = tk.Frame(img_card, bg=BG_CARD)
@@ -790,7 +784,7 @@ class ReportApp(tk.Tk):
 
         sub_row = tk.Frame(inner, bg=BG_LIGHT)
         sub_row.pack(fill="x", padx=pad, pady=(6,14))
-        tk.Button(sub_row, text="📋  提交報案  Ctrl+↵", font=("Arial", 10, "bold"),
+        tk.Button(sub_row, text="📋  Submit Report  Ctrl+↵", font=("Arial", 10, "bold"),
                   bg=ACCENT, fg=TEXT_LIGHT, relief="flat", padx=24, pady=9, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._submit_report).pack(side="left")
@@ -804,7 +798,7 @@ class ReportApp(tk.Tk):
         tk.Label(f, text=text, font=("Arial", 9, "bold"), bg=BG_LIGHT, fg=TEXT_DARK).pack(side="left")
 
     def _clear_placeholder(self, e):
-        if self.desc_text.get("1.0","end-1c").startswith("例如："): self.desc_text.delete("1.0","end")
+        if self.desc_text.get("1.0","end-1c").startswith("e.g."): self.desc_text.delete("1.0","end")
 
     # ── Log panel ─────────────────────────────────────────────
     def _build_log_panel(self, parent):
@@ -815,14 +809,14 @@ class ReportApp(tk.Tk):
 
         pick_row = tk.Frame(panel, bg=BG_LIGHT, pady=8)
         pick_row.pack(fill="x", padx=12)
-        self.log_file_var = tk.StringVar(value="尚未選擇 Log 檔案")
+        self.log_file_var = tk.StringVar(value="No log file selected")
         tk.Label(pick_row, textvariable=self.log_file_var, font=("Arial", 8),
                  bg=BG_INPUT, fg=TEXT_MID, anchor="w", padx=8, pady=4).pack(side="left", fill="x", expand=True)
-        tk.Button(pick_row, text="選擇 Log  Ctrl+L", font=("Arial", 9, "bold"),
+        tk.Button(pick_row, text="Select Log  Ctrl+L", font=("Arial", 9, "bold"),
                   bg=SH_LOG, fg=TEXT_LIGHT, relief="flat", padx=12, pady=4, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._pick_log_file).pack(side="left", padx=(6,0))
-        tk.Button(pick_row, text="清除", font=("Arial", 8), bg=BG_LIGHT, fg=TEXT_MID,
+        tk.Button(pick_row, text="Clear", font=("Arial", 8), bg=BG_LIGHT, fg=TEXT_MID,
                   relief="flat", padx=6, pady=4, cursor="hand2",
                   command=self._clear_log).pack(side="left", padx=(4,0))
 
@@ -834,23 +828,23 @@ class ReportApp(tk.Tk):
         kw_outer = tk.Frame(panel, bg=BG_LIGHT)
         kw_outer.pack(fill="x", padx=12, pady=(2,4))
         kw_left = tk.Frame(kw_outer, bg=BG_LIGHT); kw_left.pack(side="left", fill="x", expand=True)
-        tk.Label(kw_left, text="監控關鍵字：", font=("Arial", 8), bg=BG_LIGHT, fg=TEXT_MUTED).pack(side="left")
+        tk.Label(kw_left, text="Keywords:", font=("Arial", 8), bg=BG_LIGHT, fg=TEXT_MUTED).pack(side="left")
         self.kw_pills_frame = tk.Frame(kw_left, bg=BG_LIGHT); self.kw_pills_frame.pack(side="left", fill="x", expand=True)
         self._refresh_kw_pills()
-        tk.Button(kw_outer, text="✏ 編輯關鍵字", font=("Arial", 7, "bold"),
+        tk.Button(kw_outer, text="✏ Edit Keywords", font=("Arial", 7, "bold"),
                   bg="#354A61", fg=TEXT_LIGHT, relief="flat", padx=7, pady=3, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._open_keyword_editor).pack(side="right", padx=(6,0))
 
         hit_hdr = tk.Frame(panel, bg=BG_DARK, height=28)
         hit_hdr.pack(fill="x", padx=12); hit_hdr.pack_propagate(False)
-        tk.Label(hit_hdr, text="偵測結果", font=("Arial", 8, "bold"),
+        tk.Label(hit_hdr, text="Detection Results", font=("Arial", 8, "bold"),
                  bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=8, pady=5)
         self.hit_count_lbl = tk.Label(hit_hdr, text="", font=("Arial", 8, "bold"), bg=BG_DARK, fg=WARNING)
         self.hit_count_lbl.pack(side="right", padx=8)
 
         _, self.log_hit_inner, _ = _make_scrollable(panel, LOG_BG)
-        tk.Label(self.log_hit_inner, text="選擇 Log 檔案後自動掃描關鍵字",
+        tk.Label(self.log_hit_inner, text="Select a log file to auto-scan keywords",
                  font=("Arial", 9), bg=LOG_BG, fg="#475569", pady=30).pack()
         return panel
 
@@ -865,13 +859,13 @@ class ReportApp(tk.Tk):
 
     def _open_keyword_editor(self):
         editor = tk.Toplevel(self)
-        editor.title("編輯關鍵字清單"); editor.geometry("480x520")
+        editor.title("Edit Keyword List"); editor.geometry("480x520")
         editor.configure(bg=BG_LIGHT); editor.grab_set()
         hdr = tk.Frame(editor, bg=BG_DARK); hdr.pack(fill="x")
-        tk.Label(hdr, text="✏  Log TS 關鍵字清單", font=("Arial", 12, "bold"),
+        tk.Label(hdr, text="✏  Log TS Keyword List", font=("Arial", 12, "bold"),
                  bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=16, pady=10)
         info = tk.Frame(editor, bg="#EDF3FA"); info.pack(fill="x")
-        tk.Label(info, text="每行一個關鍵字　　# 開頭為註解\n儲存後下次選擇 Log 時自動生效",
+        tk.Label(info, text="One keyword per line    # lines are comments\nTakes effect on next log scan after saving.",
                  font=("Arial", 8), bg="#EDF3FA", fg="#3A5A7A", anchor="w",
                  justify="left", padx=14, pady=6).pack(fill="x")
         txt_f = tk.Frame(editor, bg=BG_LIGHT); txt_f.pack(fill="both", expand=True, padx=14, pady=10)
@@ -883,7 +877,7 @@ class ReportApp(tk.Tk):
         if os.path.exists(KEYWORDS_FILE):
             with open(KEYWORDS_FILE, "r", encoding="utf-8") as f: txt.insert("end", f.read())
         else:
-            txt.insert("end", "# Log TS 關鍵字清單\n\n" + "\n".join(_DEFAULT_KEYWORDS) + "\n")
+            txt.insert("end", "# Log TS Keyword List\n\n" + "\n".join(_DEFAULT_KEYWORDS) + "\n")
         btn_row = tk.Frame(editor, bg=BG_LIGHT); btn_row.pack(fill="x", padx=14, pady=(0,14))
         save_status = tk.Label(btn_row, text="", font=("Arial", 8), bg=BG_LIGHT, fg=DOT_GREEN)
         save_status.pack(side="right", padx=8)
@@ -893,17 +887,17 @@ class ReportApp(tk.Tk):
             try:
                 with open(KEYWORDS_FILE, "w", encoding="utf-8") as f: f.write(content)
                 ISSUE_KEYWORDS = load_keywords(); self._refresh_kw_pills()
-                save_status.configure(text=f"✓ 已儲存　共 {len(ISSUE_KEYWORDS)} 個")
-            except Exception as e: save_status.configure(text=f"❌ 失敗：{e}", fg="#F87171")
-        tk.Button(btn_row, text="💾  儲存", font=("Arial", 10, "bold"),
+                save_status.configure(text=f"✓ Saved  {len(ISSUE_KEYWORDS)} keywords")
+            except Exception as e: save_status.configure(text=f"❌ Error: {e}", fg="#F87171")
+        tk.Button(btn_row, text="💾  Save", font=("Arial", 10, "bold"),
                   bg=ACCENT, fg=TEXT_LIGHT, relief="flat", padx=18, pady=7, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT, command=_save).pack(side="left")
-        tk.Button(btn_row, text="關閉", font=("Arial", 9), bg="#374D65", fg=TEXT_LIGHT,
+        tk.Button(btn_row, text="Close", font=("Arial", 9), bg="#374D65", fg=TEXT_LIGHT,
                   relief="flat", padx=14, pady=7, cursor="hand2", command=editor.destroy).pack(side="left", padx=8)
 
     def _pick_log_file(self):
-        path = filedialog.askopenfilename(title="選擇 Log 檔案",
-                                          filetypes=[("Log","*.txt *.log"),("所有","*.*")])
+        path = filedialog.askopenfilename(title="Select Log File",
+                                          filetypes=[("Log files","*.txt *.log"),("All files","*.*")])
         if not path: return
         self._log_set_loading(os.path.basename(path))
         scan_start_str = self.issue_data.get("RCP SCAN TIME","").strip()
@@ -924,15 +918,15 @@ class ReportApp(tk.Tk):
 
     def _log_set_loading(self, filename):
         self.log_file_var.set(filename)
-        self.log_status_var.set("⏳ 掃描中，請稍候…")
+        self.log_status_var.set("⏳ Scanning, please wait…")
         self.log_status_lbl.configure(fg=TEXT_MUTED)
         self.hit_count_lbl.configure(text="")
         for w in self.log_hit_inner.winfo_children(): w.destroy()
-        tk.Label(self.log_hit_inner, text="⏳  正在讀取並掃描 Log…",
+        tk.Label(self.log_hit_inner, text="⏳  Reading and scanning log…",
                  font=("Arial", 9), bg=LOG_BG, fg="#64748B", pady=30).pack()
 
     def _log_set_error(self, msg):
-        self.log_status_var.set(f"❌ 讀取失敗：{msg}")
+        self.log_status_var.set(f"❌ Read error: {msg}")
         self.log_status_lbl.configure(fg="#F87171")
 
     def _log_scan_done(self, path, raw, hits, t_start=None, t_end=None, in_range=0, skipped=0):
@@ -951,22 +945,22 @@ class ReportApp(tk.Tk):
         if n == 0:
             if t_start and t_end:
                 rs = f"{t_start.strftime('%m/%d %H:%M:%S')} ~ {t_end.strftime('%m/%d %H:%M:%S')}"
-                self.log_status_var.set(f"範圍 {rs}　共 {in_rng:,} 行　未發現 Issue 關鍵字 ✓")
+                self.log_status_var.set(f"Range {rs}  {in_rng:,} lines  No issue keywords found ✓")
             else:
-                self.log_status_var.set(f"共 {total:,} 行 — 未發現 Issue 關鍵字 ✓")
+                self.log_status_var.set(f"{total:,} lines — No issue keywords found ✓")
             self.log_status_lbl.configure(fg=DOT_GREEN)
             self.hit_count_lbl.configure(text="")
-            tk.Label(self.log_hit_inner, text="✓  未發現任何 Issue 關鍵字",
+            tk.Label(self.log_hit_inner, text="✓  No issue keywords detected",
                      font=("Arial", 10), bg=LOG_BG, fg=DOT_GREEN, pady=30).pack()
             return
         if t_start and t_end:
             rs = f"{t_start.strftime('%m/%d %H:%M:%S')} ~ {t_end.strftime('%m/%d %H:%M:%S')}"
-            self.log_status_var.set(f"範圍 {rs}　共 {in_rng:,} 行　發現 {n} 筆命中")
+            self.log_status_var.set(f"Range {rs}  {in_rng:,} lines  {n} hits found")
         else:
-            self.log_status_var.set(f"共 {total:,} 行 — 發現 {n} 筆命中")
+            self.log_status_var.set(f"{total:,} lines — {n} hits found")
         self.log_status_lbl.configure(fg=WARNING)
-        self.hit_count_lbl.configure(text=f"⚠ {n} 筆命中")
-        self._log_progress_lbl = tk.Label(self.log_hit_inner, text=f"載入中… 0 / {n}",
+        self.hit_count_lbl.configure(text=f"⚠ {n} hits")
+        self._log_progress_lbl = tk.Label(self.log_hit_inner, text=f"Loading… 0 / {n}",
                                            font=("Arial", 8), bg=LOG_BG, fg="#64748B")
         self._log_progress_lbl.pack(pady=(6,0))
         self._render_batch(list(self.log_hits), 0, n)
@@ -991,12 +985,12 @@ class ReportApp(tk.Tk):
                      wraplength=360).pack(side="left", fill="x", expand=True)
         next_offset = offset + self._BATCH
         if next_offset < total:
-            prog = tk.Label(self.log_hit_inner, text=f"載入中… {next_offset} / {total}",
+            prog = tk.Label(self.log_hit_inner, text=f"Loading… {next_offset} / {total}",
                             font=("Arial",7), bg=LOG_BG, fg="#475569")
             prog.pack()
             self.after(0, lambda p=prog: (p.destroy(), self._render_batch(hits, next_offset, total)))
         else:
-            tk.Button(self.log_hit_inner, text="📄  查看完整 Log",
+            tk.Button(self.log_hit_inner, text="📄  View Full Log",
                       font=("Arial",8), bg="#1E2B3C", fg="#94A3B8", relief="flat",
                       padx=10, pady=5, cursor="hand2",
                       activebackground="#2A3D55", activeforeground=TEXT_LIGHT,
@@ -1004,22 +998,22 @@ class ReportApp(tk.Tk):
 
     def _clear_log(self):
         self.log_raw_text=""; self.log_hits=[]; self.log_filename=""
-        self.log_file_var.set("尚未選擇 Log 檔案"); self.log_status_var.set("")
+        self.log_file_var.set("No log file selected"); self.log_status_var.set("")
         self.hit_count_lbl.configure(text="")
         for w in self.log_hit_inner.winfo_children(): w.destroy()
-        tk.Label(self.log_hit_inner, text="選擇 Log 檔案後自動掃描關鍵字",
+        tk.Label(self.log_hit_inner, text="Select a log file to auto-scan keywords",
                  font=("Arial",9), bg=LOG_BG, fg="#475569", pady=30).pack()
 
     def _show_full_log(self):
         if not self.log_raw_text: return
-        win = tk.Toplevel(self); win.title(f"完整 Log — {self.log_filename}")
+        win = tk.Toplevel(self); win.title(f"Full Log — {self.log_filename}")
         win.geometry("960x700"); win.configure(bg=LOG_BG)
         hdr = tk.Frame(win, bg=BG_DARK); hdr.pack(fill="x")
         tk.Label(hdr, text=f"📄  {self.log_filename}", font=("Arial",12,"bold"),
                  bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=16, pady=10)
-        tk.Label(hdr, text=f"⚠ {len(self.log_hits)} 筆命中",
+        tk.Label(hdr, text=f"⚠ {len(self.log_hits)} hits",
                  font=("Arial",9), bg=BG_DARK, fg=WARNING).pack(side="right", padx=16)
-        prog_var = tk.StringVar(value="載入中…")
+        prog_var = tk.StringVar(value="Loading…")
         prog_lbl = tk.Label(win, textvariable=prog_var, font=("Arial",8), bg=LOG_BG, fg="#64748B")
         prog_lbl.pack(anchor="w", padx=12, pady=(4,0))
         txt = scrolledtext.ScrolledText(win, font=("Courier",9), bg=LOG_BG, fg=LOG_FG,
@@ -1028,7 +1022,7 @@ class ReportApp(tk.Tk):
         txt.pack(fill="both", expand=True)
         txt.tag_configure("hit_line", background="#1B3050", foreground=LOG_KW_FG)
         txt.tag_configure("kw", foreground="#FB923C", font=("Courier",9,"bold"))
-        tk.Button(win, text="關閉", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
+        tk.Button(win, text="Close", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
                   relief="flat", padx=14, pady=5, command=win.destroy).pack(pady=6)
         hit_linenos = {h[0] for h in self.log_hits}
         kw_pattern  = re.compile("|".join(re.escape(k) for k in ISSUE_KEYWORDS))
@@ -1046,7 +1040,7 @@ class ReportApp(tk.Tk):
                 else: txt.insert("end", line+"\n")
             txt.configure(state="disabled")
             if end < total_lines:
-                prog_var.set(f"載入中… {end:,} / {total_lines:,} 行")
+                prog_var.set(f"Loading… {end:,} / {total_lines:,} lines")
                 win.after(0, lambda: _insert_chunk(end))
             else:
                 prog_lbl.destroy()
@@ -1055,11 +1049,11 @@ class ReportApp(tk.Tk):
 
     # ── Image ─────────────────────────────────────────────────
     def _upload_images(self):
-        paths = filedialog.askopenfilenames(title="選擇截圖",
-                                            filetypes=[("圖片","*.png *.jpg *.jpeg *.bmp *.gif *.webp"),("所有","*.*")])
+        paths = filedialog.askopenfilenames(title="Select Screenshots",
+                                            filetypes=[("Images","*.png *.jpg *.jpeg *.bmp *.gif *.webp"),("All files","*.*")])
         for p in paths:
             try: self.report_images.append((os.path.basename(p), Image.open(p)))
-            except Exception as ex: messagebox.showerror("錯誤", f"無法開啟 {p}：{ex}")
+            except Exception as ex: messagebox.showerror("Error", f"Cannot open {p}: {ex}")
         self._refresh_img_grid()
 
     def _clear_images(self):
@@ -1069,10 +1063,10 @@ class ReportApp(tk.Tk):
         for w in self.img_grid.winfo_children(): w.destroy()
         self._photo_refs.clear()
         if not self.report_images:
-            self.img_count_lbl.configure(text="尚未上傳")
-            tk.Label(self.img_grid, text="點選上方按鈕上傳截圖",
+            self.img_count_lbl.configure(text="None uploaded")
+            tk.Label(self.img_grid, text="Click above to upload screenshots",
                      font=("Arial",8), bg=BG_CARD, fg=TEXT_MUTED, pady=10).pack(); return
-        self.img_count_lbl.configure(text=f"已上傳 {len(self.report_images)} 張")
+        self.img_count_lbl.configure(text=f"{len(self.report_images)} uploaded")
         for idx, (name, img) in enumerate(self.report_images):
             c, r = idx%3, idx//3
             cell = tk.Frame(self.img_grid, bg=BG_INPUT, highlightbackground=BORDER, highlightthickness=1)
@@ -1094,10 +1088,10 @@ class ReportApp(tk.Tk):
     # ── Submit ────────────────────────────────────────────────
     def _submit_report(self):
         desc = self.desc_text.get("1.0","end-1c").strip()
-        if not desc or desc.startswith("例如："):
-            messagebox.showwarning("提示","請先輸入 Issue 描述。"); return
+        if not desc or desc.startswith("e.g."):
+            messagebox.showwarning("Notice","Please enter an issue description."); return
         tags_raw = self.tags_entry.get().strip()
-        tags = [t.strip() for t in tags_raw.split(",") if t.strip() and not t.strip().startswith("例")] if tags_raw else []
+        tags = [t.strip() for t in tags_raw.split(",") if t.strip() and not t.strip().startswith("e.g")] if tags_raw else []
         hit_kws = list(dict.fromkeys(kw for _,_,kws in self.log_hits for kw in kws))
         record = {
             "id":    len(self.issue_records)+1,
@@ -1122,7 +1116,7 @@ class ReportApp(tk.Tk):
         self.report_images = []; self._photo_refs.clear()
         self._refresh_img_grid()
         self.desc_text.delete("1.0","end")
-        self.submit_status.configure(text=f"✓ 已提交 Issue #{record['id']}")
+        self.submit_status.configure(text=f"✓ Submitted Issue #{record['id']}")
         self.after(600, lambda: self._nav_select("tool_issue"))
 
     # ══════════════════════════════════════════════════════════
@@ -1146,25 +1140,25 @@ class ReportApp(tk.Tk):
                                  highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
         search_entry.pack(side="left", padx=4, ipady=4)
         search_entry.bind("<KeyRelease>", lambda e: self._refresh_issue_list())
-        tk.Label(search_f, text="搜尋描述/Tool ID/LOT ID", font=("Arial",7), bg="#EEF1F6", fg=TEXT_MUTED).pack(side="left", padx=4)
+        tk.Label(search_f, text="Search desc/Tool ID/LOT ID", font=("Arial",7), bg="#EEF1F6", fg=TEXT_MUTED).pack(side="left", padx=4)
 
         # 按鈕群
-        tk.Button(toolbar, text="Ctrl+E  匯出選取", font=("Arial",8,"bold"),
+        tk.Button(toolbar, text="Ctrl+E  Export Selected", font=("Arial",8,"bold"),
                   bg=INFO, fg=TEXT_LIGHT, relief="flat", padx=10, pady=5, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._export_selected).pack(side="right", padx=4)
-        tk.Button(toolbar, text="全選", font=("Arial",8),
+        tk.Button(toolbar, text="Select All", font=("Arial",8),
                   bg=BG_LIGHT, fg=TEXT_MID, relief="flat", padx=8, pady=5, cursor="hand2",
                   command=self._select_all).pack(side="right", padx=2)
-        tk.Button(toolbar, text="清除選取", font=("Arial",8),
+        tk.Button(toolbar, text="Clear Selection", font=("Arial",8),
                   bg=BG_LIGHT, fg=TEXT_MID, relief="flat", padx=8, pady=5, cursor="hand2",
                   command=self._clear_selection).pack(side="right", padx=2)
 
         self._col_defs = [
             ("",              3),("☐",  2),("#",   3),
-            ("時間",          12),("Tool ID",      10),
-            ("RCP NAME",      14),("LOT ID",        10),("RCP MODIFY TIME",16),
-            ("RCP SCAN TIME", 14),("SCAN END TIME", 14),("Log TS", 0),("Issue 描述", 0),
+            ("Time",          10),("Tool ID",      9),
+            ("RCP NAME",      12),("LOT ID",        9),("RCP MODIFY TIME",14),
+            ("RCP SCAN TIME", 13),("SCAN END TIME", 13),("Log TS", 0),("Description", 0),
         ]
         th = tk.Frame(page, bg=BG_DARK)
         th.pack(fill="x")
@@ -1180,7 +1174,7 @@ class ReportApp(tk.Tk):
         return page
 
     def _show_empty_placeholder(self):
-        tk.Label(self.issue_list_inner, text="尚無報案紀錄。完成報案後資料將顯示於此。",
+        tk.Label(self.issue_list_inner, text="No records yet. Submit a report to see data here.",
                  font=("Arial",11), bg=BG_LIGHT, fg=TEXT_MUTED, pady=60).pack()
 
     def _filtered_records(self):
@@ -1207,14 +1201,14 @@ class ReportApp(tk.Tk):
             # export all filtered
             targets = self._filtered_records()
         if not targets:
-            messagebox.showinfo("提示","無可匯出的資料。"); return
+            messagebox.showinfo("Notice","No data to export."); return
         exported = []
         for r in targets:
             try: exported.append(export_html(r))
-            except Exception as e: messagebox.showerror("錯誤", f"匯出 #{r['id']} 失敗：{e}")
+            except Exception as e: messagebox.showerror("Error", f"Export #{r['id']} failed: {e}")
         if exported:
-            msg = f"已匯出 {len(exported)} 份報告至：\n{EXPORTS_DIR}"
-            if messagebox.askyesno("匯出完成", msg + "\n\n是否開啟資料夾？"):
+            msg = f"Exported {len(exported)} report(s) to:\n{EXPORTS_DIR}"
+            if messagebox.askyesno("Export Complete", msg + "\n\nOpen folder?"):
                 try: os.startfile(EXPORTS_DIR)
                 except: webbrowser.open(f"file://{EXPORTS_DIR}")
 
@@ -1306,13 +1300,13 @@ class ReportApp(tk.Tk):
     def _export_one(self, rec):
         try:
             path = export_html(rec)
-            if messagebox.askyesno("匯出完成", f"已匯出 Issue #{rec['id']}\n{path}\n\n是否立即開啟？"):
+            if messagebox.askyesno("Export Complete", f"Exported Issue #{rec['id']}\n{path}\n\nOpen now?"):
                 webbrowser.open(f"file://{path}")
         except Exception as e:
-            messagebox.showerror("錯誤", str(e))
+            messagebox.showerror("Error", str(e))
 
     def _delete_record(self, rec_id):
-        if not messagebox.askyesno("確認刪除", f"確定要刪除 Issue #{rec_id} 嗎？"): return
+        if not messagebox.askyesno("Confirm Delete", f"Delete Issue #{rec_id}?"): return
         self.issue_records = [r for r in self.issue_records if r["id"] != rec_id]
         self._selected_ids.discard(rec_id)
         save_records(self.issue_records)
@@ -1321,20 +1315,20 @@ class ReportApp(tk.Tk):
     # ── Log detail popup ──────────────────────────────────────
     def _show_log_detail(self, rec):
         popup = tk.Toplevel(self)
-        popup.title(f"Issue #{rec['id']} — Log TS 詳情")
+        popup.title(f"Issue #{rec['id']} — Log TS Details")
         popup.geometry("860x600"); popup.configure(bg=LOG_BG); popup.grab_set()
         hdr = tk.Frame(popup, bg=BG_DARK); hdr.pack(fill="x")
         tk.Label(hdr, text=f"📋  {rec.get('log_file','—')}", font=("Arial",12,"bold"),
                  bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=16, pady=10)
-        tk.Label(hdr, text=f"⚠ {len(rec.get('log_hits',[]))} 筆命中",
+        tk.Label(hdr, text=f"⚠ {len(rec.get('log_hits',[]))} hits",
                  font=("Arial",9), bg=BG_DARK, fg=WARNING).pack(side="right", padx=16)
         if not rec.get("log_hits"):
-            tk.Label(popup, text="此報案未包含 Log TS 資料。",
+            tk.Label(popup, text="No Log TS data for this issue.",
                      font=("Arial",11), bg=LOG_BG, fg="#475569", pady=40).pack()
-            tk.Button(popup, text="關閉", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
+            tk.Button(popup, text="Close", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
                       relief="flat", padx=14, pady=5, command=popup.destroy).pack(pady=8); return
         kw_bar = tk.Frame(popup, bg="#1E293B"); kw_bar.pack(fill="x")
-        tk.Label(kw_bar, text="命中關鍵字：", font=("Arial",8), bg="#1E293B", fg="#94A3B8",
+        tk.Label(kw_bar, text="Matched Keywords:", font=("Arial",8), bg="#1E293B", fg="#94A3B8",
                  padx=12, pady=6).pack(side="left")
         for kw in rec.get("log_keywords",[]):
             tk.Label(kw_bar, text=kw, font=("Arial",7,"bold"), bg=KW_TAG_BG, fg=TEXT_LIGHT,
@@ -1352,18 +1346,18 @@ class ReportApp(tk.Tk):
             tk.Label(row, text=line.strip()[:150], font=("Courier",8),
                      bg="#1E293B", fg=LOG_KW_FG, anchor="w",
                      padx=8, pady=4, wraplength=620).pack(side="left", fill="x", expand=True)
-        tk.Button(popup, text="關閉", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
+        tk.Button(popup, text="Close", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
                   relief="flat", padx=14, pady=5, command=popup.destroy).pack(pady=10)
 
     # ── Issue detail popup ────────────────────────────────────
     def _show_issue_detail(self, rec):
         popup = tk.Toplevel(self)
-        popup.title(f"Issue #{rec['id']} 詳情")
+        popup.title(f"Issue #{rec['id']} Details")
         popup.geometry("840x700"); popup.configure(bg=BG_LIGHT); popup.grab_set()
         hdr = tk.Frame(popup, bg=BG_DARK); hdr.pack(fill="x")
         tk.Label(hdr, text=f"Issue #{rec['id']}  —  {rec['time']}",
                  font=("Arial",13,"bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=20, pady=12)
-        tk.Button(hdr, text="⬇ 匯出 HTML", font=("Arial",9,"bold"),
+        tk.Button(hdr, text="⬇ Export HTML", font=("Arial",9,"bold"),
                   bg=INFO, fg=TEXT_LIGHT, relief="flat", padx=14, pady=6, cursor="hand2",
                   command=lambda: self._export_one(rec)).pack(side="right", padx=16, pady=8)
         _, body, _ = _make_scrollable(popup, BG_LIGHT)
@@ -1373,17 +1367,17 @@ class ReportApp(tk.Tk):
         tags = rec.get("tags",[])
         if tags:
             tf = tk.Frame(body, bg=BG_LIGHT); tf.pack(fill="x", padx=pad, pady=(12,4))
-            tk.Label(tf, text="標籤：", font=("Arial",9), bg=BG_LIGHT, fg=TEXT_MID).pack(side="left")
+            tk.Label(tf, text="Tags:", font=("Arial",9), bg=BG_LIGHT, fg=TEXT_MID).pack(side="left")
             for tag in tags:
                 tk.Label(tf, text=tag, font=("Arial",9,"bold"), bg="#EDE9FE", fg="#7C3AED",
                          padx=8, pady=2).pack(side="left", padx=(0,6))
 
-        self._popup_sec(body, "RCP 欄位比對", pad)
+        self._popup_sec(body, "RCP Field Comparison", pad)
         tbl = tk.Frame(body, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         tbl.pack(fill="x", padx=pad, pady=(0,12))
         th = tk.Frame(tbl, bg=BG_DARK); th.pack(fill="x")
         tk.Label(th, text="", bg=BG_DARK, width=2, padx=4, pady=5).pack(side="left")
-        for t,w in [("欄位",18),("Golden 值",22),("Issue 值",22)]:
+        for t,w in [("Field",18),("Golden Value",22),("Issue Value",22)]:
             tk.Label(th, text=t, font=("Arial",9,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                      anchor="w", width=w, padx=8, pady=5).pack(side="left")
         for j, (field, g_val, i_val, status) in enumerate(diff_dicts(rec["golden"], rec["issue"])):
@@ -1400,7 +1394,7 @@ class ReportApp(tk.Tk):
             tk.Label(rf, text=i_val or "—", font=("Courier",9), bg=bg, fg=i_fg, width=22, anchor="w", padx=8, pady=6).pack(side="left")
             tk.Frame(tbl, bg=BORDER, height=1).pack(fill="x")
 
-        self._popup_sec(body, "Issue 描述", pad)
+        self._popup_sec(body, "Issue Description", pad)
         desc_f = tk.Frame(body, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         desc_f.pack(fill="x", padx=pad, pady=(0,12))
         tk.Label(desc_f, text=rec["desc"], font=("Arial",10), bg=BG_CARD, fg=TEXT_DARK,
@@ -1415,11 +1409,11 @@ class ReportApp(tk.Tk):
             for kw in log_kws:
                 tk.Label(pr, text=kw, font=("Arial",9,"bold"), bg=KW_TAG_BG, fg=TEXT_LIGHT,
                          padx=6, pady=2).pack(side="left", padx=(0,5))
-            tk.Label(lf, text=f"共 {len(rec.get('log_hits',[]))} 行命中",
+            tk.Label(lf, text=f"{len(rec.get('log_hits',[]))} lines matched",
                      font=("Arial",8), bg=BG_CARD, fg=TEXT_MUTED, padx=12, pady=(0,8)).pack(anchor="w")
 
         if rec["images"]:
-            self._popup_sec(body, f"截圖 ({len(rec['images'])} 張)", pad)
+            self._popup_sec(body, f"Screenshots ({len(rec['images'])})", pad)
             img_f = tk.Frame(body, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
             img_f.pack(fill="x", padx=pad, pady=(0,16))
             gf = tk.Frame(img_f, bg=BG_CARD); gf.pack(fill="x", padx=12, pady=10)
@@ -1436,10 +1430,10 @@ class ReportApp(tk.Tk):
                 il.bind("<Button-1>", lambda e, im=img, nm=name: self._show_full_image(im, nm))
                 tk.Label(cell, text=name[:20]+("…" if len(name)>20 else ""),
                          font=("Arial",8), bg=BG_INPUT, fg=TEXT_MID).pack(pady=(0,6))
-            tk.Label(img_f, text="（點擊圖片可放大檢視）",
+            tk.Label(img_f, text="(Click an image to enlarge)",
                      font=("Arial",8), bg=BG_CARD, fg=TEXT_MUTED).pack(pady=(0,8))
 
-        tk.Button(body, text="關閉", font=("Arial",10), bg="#374D65", fg=TEXT_LIGHT,
+        tk.Button(body, text="Close", font=("Arial",10), bg="#374D65", fg=TEXT_LIGHT,
                   relief="flat", padx=20, pady=8, cursor="hand2",
                   command=popup.destroy).pack(pady=16)
 
@@ -1454,7 +1448,7 @@ class ReportApp(tk.Tk):
         win.geometry(f"{disp.width}x{disp.height+40}")
         ph = ImageTk.PhotoImage(disp); win._ph = ph
         tk.Label(win, image=ph, bg=BG_DARK).pack(expand=True)
-        tk.Button(win, text="關閉", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
+        tk.Button(win, text="Close", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
                   relief="flat", padx=14, pady=5, command=win.destroy).pack(pady=6)
 
 

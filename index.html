@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>報案小程式</title>
+  <link rel="stylesheet" href="src/css/main.css" />
+  <link rel="stylesheet" href="src/css/components.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Splash ── -->
+    <div id="page-splash" class="page active">
+      <div class="splash-inner">
+        <div class="splash-icon">🛡️</div>
+        <h1 class="splash-title">報案小程式</h1>
+        <p class="splash-sub">安全、快速、便民</p>
+        <div class="splash-loader"></div>
+      </div>
+    </div>
+
+    <!-- ── Home ── -->
+    <div id="page-home" class="page">
+      <header class="top-bar">
+        <span class="top-bar-title">報案小程式</span>
+        <button class="icon-btn" onclick="navigate('page-profile')">👤</button>
+      </header>
+
+      <div class="scroll-area">
+        <!-- Banner -->
+        <div class="banner">
+          <div class="banner-text">
+            <div class="banner-label">緊急報案</div>
+            <div class="banner-hotline">110</div>
+            <div class="banner-sub">非緊急請使用線上報案</div>
+          </div>
+          <div class="banner-icon">🚨</div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="section-title">快速功能</div>
+        <div class="quick-grid">
+          <button class="quick-card" onclick="navigate('page-report')">
+            <span class="quick-icon">📋</span>
+            <span class="quick-label">線上報案</span>
+          </button>
+          <button class="quick-card" onclick="navigate('page-compare')">
+            <span class="quick-icon">🔍</span>
+            <span class="quick-label">文件比對</span>
+          </button>
+          <button class="quick-card" onclick="navigate('page-status')">
+            <span class="quick-icon">📊</span>
+            <span class="quick-label">案件查詢</span>
+          </button>
+          <button class="quick-card" onclick="navigate('page-guide')">
+            <span class="quick-icon">📖</span>
+            <span class="quick-label">報案指南</span>
+          </button>
+        </div>
+
+        <!-- Recent notices -->
+        <div class="section-title">最新公告</div>
+        <div class="notice-list">
+          <div class="notice-card">
+            <div class="notice-tag info">公告</div>
+            <div class="notice-body">
+              <div class="notice-title">線上報案系統升級維護通知</div>
+              <div class="notice-date">2026-06-20</div>
+            </div>
+          </div>
+          <div class="notice-card">
+            <div class="notice-tag warn">提醒</div>
+            <div class="notice-body">
+              <div class="notice-title">近期詐騙電話案件頻繁，請民眾提高警覺</div>
+              <div class="notice-date">2026-06-18</div>
+            </div>
+          </div>
+          <div class="notice-card">
+            <div class="notice-tag info">公告</div>
+            <div class="notice-body">
+              <div class="notice-title">文件真偽比對功能正式上線</div>
+              <div class="notice-date">2026-06-15</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tab-bar">
+        <button class="tab active" onclick="navigate('page-home')"><span>🏠</span><span>首頁</span></button>
+        <button class="tab" onclick="navigate('page-report')"><span>📋</span><span>報案</span></button>
+        <button class="tab" onclick="navigate('page-compare')"><span>🔍</span><span>比對</span></button>
+        <button class="tab" onclick="navigate('page-status')"><span>📊</span><span>查詢</span></button>
+        <button class="tab" onclick="navigate('page-profile')"><span>👤</span><span>我的</span></button>
+      </nav>
+    </div>
+
+    <!-- ── Report Filing ── -->
+    <div id="page-report" class="page">
+      <header class="top-bar">
+        <button class="icon-btn" onclick="goBack()">←</button>
+        <span class="top-bar-title">線上報案</span>
+        <span style="width:36px"></span>
+      </header>
+
+      <!-- Step indicator -->
+      <div class="step-bar">
+        <div class="step active" id="step-dot-1"><span>1</span><label>基本資料</label></div>
+        <div class="step-line"></div>
+        <div class="step" id="step-dot-2"><span>2</span><label>案情說明</label></div>
+        <div class="step-line"></div>
+        <div class="step" id="step-dot-3"><span>3</span><label>附件上傳</label></div>
+        <div class="step-line"></div>
+        <div class="step" id="step-dot-4"><span>4</span><label>確認送出</span></div>
+      </div>
+
+      <div class="scroll-area" id="report-scroll">
+
+        <!-- Step 1 -->
+        <div id="report-step-1" class="report-step">
+          <div class="form-card">
+            <div class="form-section-title">報案人基本資料</div>
+            <div class="field">
+              <label>姓名 <span class="required">*</span></label>
+              <input type="text" id="r-name" placeholder="請輸入真實姓名" />
+            </div>
+            <div class="field">
+              <label>身分證字號 <span class="required">*</span></label>
+              <input type="text" id="r-id" placeholder="A123456789" maxlength="10" />
+            </div>
+            <div class="field">
+              <label>聯絡電話 <span class="required">*</span></label>
+              <input type="tel" id="r-phone" placeholder="09XXXXXXXX" />
+            </div>
+            <div class="field">
+              <label>電子郵件</label>
+              <input type="email" id="r-email" placeholder="example@mail.com" />
+            </div>
+            <div class="field">
+              <label>通訊地址</label>
+              <input type="text" id="r-address" placeholder="縣市、鄉鎮市區、路街..." />
+            </div>
+          </div>
+          <div class="form-hint">
+            <span>🔒</span> 個人資料依《個人資料保護法》嚴格保護，僅供案件處理使用。
+          </div>
+          <button class="btn-primary" onclick="nextStep(1)">下一步</button>
+        </div>
+
+        <!-- Step 2 -->
+        <div id="report-step-2" class="report-step hidden">
+          <div class="form-card">
+            <div class="form-section-title">案情說明</div>
+            <div class="field">
+              <label>案件類型 <span class="required">*</span></label>
+              <select id="r-type">
+                <option value="">請選擇案件類型</option>
+                <option>詐欺案</option>
+                <option>竊盜案</option>
+                <option>毀損案</option>
+                <option>傷害案</option>
+                <option>騷擾案</option>
+                <option>詐騙電話</option>
+                <option>網路犯罪</option>
+                <option>其他</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>發生時間 <span class="required">*</span></label>
+              <input type="datetime-local" id="r-time" />
+            </div>
+            <div class="field">
+              <label>發生地點 <span class="required">*</span></label>
+              <input type="text" id="r-location" placeholder="請輸入詳細地點或描述" />
+            </div>
+            <div class="field">
+              <label>案情描述 <span class="required">*</span></label>
+              <textarea id="r-desc" rows="6" placeholder="請詳細描述發生經過、損失金額、對方特徵等資訊..."></textarea>
+              <div class="char-count" id="desc-count">0 / 1000 字</div>
+            </div>
+            <div class="field">
+              <label>嫌疑人資料（如有）</label>
+              <input type="text" id="r-suspect" placeholder="姓名、特徵、車牌號碼等" />
+            </div>
+            <div class="field">
+              <label>損失金額（新台幣）</label>
+              <input type="number" id="r-loss" placeholder="0" min="0" />
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="prevStep(2)">上一步</button>
+            <button class="btn-primary" onclick="nextStep(2)">下一步</button>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div id="report-step-3" class="report-step hidden">
+          <div class="form-card">
+            <div class="form-section-title">相關附件上傳</div>
+            <p class="field-hint">可上傳截圖、照片、文件等相關證據（最多 5 個檔案，每檔限 10MB）</p>
+            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+              <div class="upload-icon">📎</div>
+              <div class="upload-text">點擊選擇檔案</div>
+              <div class="upload-hint">支援 JPG / PNG / PDF / MP4</div>
+              <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4" style="display:none" onchange="handleFiles(this)" />
+            </div>
+            <div id="file-list" class="file-list"></div>
+          </div>
+
+          <div class="form-card">
+            <div class="form-section-title">文件比對（選用）</div>
+            <p class="field-hint">若持有疑似偽造文件，可進行即時真偽比對</p>
+            <button class="btn-outline" onclick="navigate('page-compare')">前往文件比對 →</button>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="prevStep(3)">上一步</button>
+            <button class="btn-primary" onclick="nextStep(3)">下一步</button>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div id="report-step-4" class="report-step hidden">
+          <div class="form-card">
+            <div class="form-section-title">確認報案資料</div>
+            <div id="report-summary" class="summary-list"></div>
+          </div>
+          <div class="form-card">
+            <label class="checkbox-row">
+              <input type="checkbox" id="agree-checkbox" />
+              <span>我確認以上資料屬實，並同意將個人資料用於案件處理。</span>
+            </label>
+          </div>
+          <div class="btn-row">
+            <button class="btn-secondary" onclick="prevStep(4)">上一步</button>
+            <button class="btn-primary" onclick="submitReport()">送出報案</button>
+          </div>
+        </div>
+
+      </div>
+
+      <nav class="tab-bar">
+        <button class="tab" onclick="navigate('page-home')"><span>🏠</span><span>首頁</span></button>
+        <button class="tab active" onclick="navigate('page-report')"><span>📋</span><span>報案</span></button>
+        <button class="tab" onclick="navigate('page-compare')"><span>🔍</span><span>比對</span></button>
+        <button class="tab" onclick="navigate('page-status')"><span>📊</span><span>查詢</span></button>
+        <button class="tab" onclick="navigate('page-profile')"><span>👤</span><span>我的</span></button>
+      </nav>
+    </div>
+
+    <!-- ── Document Comparison ── -->
+    <div id="page-compare" class="page">
+      <header class="top-bar">
+        <button class="icon-btn" onclick="goBack()">←</button>
+        <span class="top-bar-title">文件真偽比對</span>
+        <span style="width:36px"></span>
+      </header>
+
+      <div class="scroll-area">
+        <div class="compare-hero">
+          <div class="compare-hero-icon">🔍</div>
+          <div class="compare-hero-text">AI 文件真偽比對系統</div>
+          <div class="compare-hero-sub">上傳文件影像，系統將自動分析關鍵特徵</div>
+        </div>
+
+        <!-- Upload panels -->
+        <div class="compare-panels">
+          <div class="compare-panel" id="panel-original">
+            <div class="panel-label">原始文件（參考）</div>
+            <div class="drop-area" id="drop-original" onclick="triggerUpload('upload-original')">
+              <div id="preview-original" class="preview-area hidden"></div>
+              <div id="placeholder-original" class="drop-placeholder">
+                <div>📄</div>
+                <div>上傳原始文件</div>
+                <div class="drop-hint">拖曳或點擊選擇</div>
+              </div>
+              <input type="file" id="upload-original" accept="image/*,.pdf" style="display:none"
+                onchange="loadPreview(this, 'preview-original', 'placeholder-original', 'original')" />
+            </div>
+            <button class="btn-outline small" onclick="triggerUpload('upload-original')">選擇檔案</button>
+          </div>
+
+          <div class="compare-vs">VS</div>
+
+          <div class="compare-panel" id="panel-suspect">
+            <div class="panel-label">待驗文件（疑似）</div>
+            <div class="drop-area" id="drop-suspect" onclick="triggerUpload('upload-suspect')">
+              <div id="preview-suspect" class="preview-area hidden"></div>
+              <div id="placeholder-suspect" class="drop-placeholder">
+                <div>📄</div>
+                <div>上傳疑似文件</div>
+                <div class="drop-hint">拖曳或點擊選擇</div>
+              </div>
+              <input type="file" id="upload-suspect" accept="image/*,.pdf" style="display:none"
+                onchange="loadPreview(this, 'preview-suspect', 'placeholder-suspect', 'suspect')" />
+            </div>
+            <button class="btn-outline small" onclick="triggerUpload('upload-suspect')">選擇檔案</button>
+          </div>
+        </div>
+
+        <!-- Options -->
+        <div class="form-card">
+          <div class="form-section-title">比對選項</div>
+          <div class="check-group">
+            <label class="checkbox-row"><input type="checkbox" checked id="chk-seal" /><span>印章/簽名比對</span></label>
+            <label class="checkbox-row"><input type="checkbox" checked id="chk-font" /><span>字體排版分析</span></label>
+            <label class="checkbox-row"><input type="checkbox" checked id="chk-meta" /><span>浮水印/防偽標記</span></label>
+            <label class="checkbox-row"><input type="checkbox" id="chk-ocr" /><span>OCR 文字比對</span></label>
+            <label class="checkbox-row"><input type="checkbox" id="chk-pixel" /><span>像素層級分析（較慢）</span></label>
+          </div>
+        </div>
+
+        <button class="btn-primary" id="btn-compare" onclick="runComparison()" disabled>開始比對</button>
+
+        <!-- Result -->
+        <div id="compare-result" class="hidden">
+          <div class="result-card" id="result-card">
+            <div class="result-header">
+              <div class="result-icon" id="result-icon">⏳</div>
+              <div class="result-title" id="result-title">分析中...</div>
+            </div>
+            <div class="result-score-wrap">
+              <div class="result-score-label">相似度分析</div>
+              <div class="result-score-bar">
+                <div class="result-score-fill" id="score-fill" style="width:0%"></div>
+              </div>
+              <div class="result-score-num" id="score-num">0%</div>
+            </div>
+            <div class="result-details" id="result-details"></div>
+            <div class="result-actions">
+              <button class="btn-outline" onclick="exportResult()">匯出報告</button>
+              <button class="btn-primary" onclick="navigate('page-report')">附加至報案</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="spacer-bottom"></div>
+      </div>
+
+      <nav class="tab-bar">
+        <button class="tab" onclick="navigate('page-home')"><span>🏠</span><span>首頁</span></button>
+        <button class="tab" onclick="navigate('page-report')"><span>📋</span><span>報案</span></button>
+        <button class="tab active" onclick="navigate('page-compare')"><span>🔍</span><span>比對</span></button>
+        <button class="tab" onclick="navigate('page-status')"><span>📊</span><span>查詢</span></button>
+        <button class="tab" onclick="navigate('page-profile')"><span>👤</span><span>我的</span></button>
+      </nav>
+    </div>
+
+    <!-- ── Case Status ── -->
+    <div id="page-status" class="page">
+      <header class="top-bar">
+        <button class="icon-btn" onclick="goBack()">←</button>
+        <span class="top-bar-title">案件查詢</span>
+        <span style="width:36px"></span>
+      </header>
+      <div class="scroll-area">
+        <div class="form-card" style="margin-top:16px">
+          <div class="field">
+            <label>報案編號</label>
+            <input type="text" id="case-no-input" placeholder="例：TP-2026-00123" />
+          </div>
+          <div class="field">
+            <label>身分證字號</label>
+            <input type="text" id="case-id-input" placeholder="A123456789" maxlength="10" />
+          </div>
+          <button class="btn-primary" onclick="queryCase()">查詢</button>
+        </div>
+
+        <div id="case-result" class="hidden">
+          <div class="form-card">
+            <div class="form-section-title">案件進度</div>
+            <div class="case-meta">
+              <div class="case-meta-row"><span>報案編號</span><strong>TP-2026-00123</strong></div>
+              <div class="case-meta-row"><span>案件類型</span><strong>詐欺案</strong></div>
+              <div class="case-meta-row"><span>報案日期</span><strong>2026-06-10</strong></div>
+              <div class="case-meta-row"><span>承辦分局</span><strong>信義分局</strong></div>
+              <div class="case-meta-row"><span>承辦員警</span><strong>王○○</strong></div>
+            </div>
+            <div class="timeline">
+              <div class="tl-item done">
+                <div class="tl-dot"></div>
+                <div class="tl-content">
+                  <div class="tl-title">報案受理</div>
+                  <div class="tl-date">2026-06-10 14:32</div>
+                </div>
+              </div>
+              <div class="tl-item done">
+                <div class="tl-dot"></div>
+                <div class="tl-content">
+                  <div class="tl-title">案件分配</div>
+                  <div class="tl-date">2026-06-10 16:00</div>
+                </div>
+              </div>
+              <div class="tl-item active">
+                <div class="tl-dot"></div>
+                <div class="tl-content">
+                  <div class="tl-title">調查中</div>
+                  <div class="tl-date">進行中</div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot"></div>
+                <div class="tl-content">
+                  <div class="tl-title">移送偵辦</div>
+                  <div class="tl-date">—</div>
+                </div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot"></div>
+                <div class="tl-content">
+                  <div class="tl-title">結案</div>
+                  <div class="tl-date">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="spacer-bottom"></div>
+      </div>
+      <nav class="tab-bar">
+        <button class="tab" onclick="navigate('page-home')"><span>🏠</span><span>首頁</span></button>
+        <button class="tab" onclick="navigate('page-report')"><span>📋</span><span>報案</span></button>
+        <button class="tab" onclick="navigate('page-compare')"><span>🔍</span><span>比對</span></button>
+        <button class="tab active" onclick="navigate('page-status')"><span>📊</span><span>查詢</span></button>
+        <button class="tab" onclick="navigate('page-profile')"><span>👤</span><span>我的</span></button>
+      </nav>
+    </div>
+
+    <!-- ── Guide ── -->
+    <div id="page-guide" class="page">
+      <header class="top-bar">
+        <button class="icon-btn" onclick="goBack()">←</button>
+        <span class="top-bar-title">報案指南</span>
+        <span style="width:36px"></span>
+      </header>
+      <div class="scroll-area">
+        <div class="guide-list">
+          <details class="guide-item" open>
+            <summary>📋 如何線上報案？</summary>
+            <div class="guide-body">
+              <ol>
+                <li>點選「線上報案」，填寫個人基本資料。</li>
+                <li>選擇案件類型，詳細描述發生經過。</li>
+                <li>上傳相關證據檔案（照片、截圖等）。</li>
+                <li>確認資料正確後送出，系統將發送受理確認通知。</li>
+              </ol>
+            </div>
+          </details>
+          <details class="guide-item">
+            <summary>🔍 如何進行文件比對？</summary>
+            <div class="guide-body">
+              <p>上傳原始文件與疑似偽造文件，系統將透過 AI 分析：</p>
+              <ul>
+                <li>印章與簽名筆跡比對</li>
+                <li>字體排版一致性分析</li>
+                <li>浮水印與防偽標記檢測</li>
+                <li>OCR 文字內容比較</li>
+              </ul>
+              <p>比對結果可直接附加至報案資料中。</p>
+            </div>
+          </details>
+          <details class="guide-item">
+            <summary>⚠️ 何時撥打 110？</summary>
+            <div class="guide-body">
+              <p>遇到下列緊急情況請立即撥打 <strong>110</strong>：</p>
+              <ul>
+                <li>案件正在發生或嫌疑人仍在現場</li>
+                <li>有人身安全威脅</li>
+                <li>需要警力即時介入</li>
+              </ul>
+              <p>非緊急事件可使用本系統線上報案，避免佔用緊急資源。</p>
+            </div>
+          </details>
+          <details class="guide-item">
+            <summary>🔒 個人資料如何保護？</summary>
+            <div class="guide-body">
+              <p>所有個人資料依《個人資料保護法》嚴格處理：</p>
+              <ul>
+                <li>傳輸採 TLS 1.3 加密</li>
+                <li>資料僅授權人員可存取</li>
+                <li>案件結束後依規定期限銷毀</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+        <div class="spacer-bottom"></div>
+      </div>
+    </div>
+
+    <!-- ── Profile ── -->
+    <div id="page-profile" class="page">
+      <header class="top-bar">
+        <button class="icon-btn" onclick="goBack()">←</button>
+        <span class="top-bar-title">個人專區</span>
+        <span style="width:36px"></span>
+      </header>
+      <div class="scroll-area">
+        <div class="profile-header">
+          <div class="avatar">👤</div>
+          <div class="profile-name">訪客用戶</div>
+          <div class="profile-sub">尚未登入</div>
+          <button class="btn-primary small" style="margin-top:12px">登入 / 註冊</button>
+        </div>
+        <div class="menu-list">
+          <div class="menu-item" onclick="navigate('page-status')">
+            <span>📊 我的案件</span><span class="chevron">›</span>
+          </div>
+          <div class="menu-item" onclick="navigate('page-compare')">
+            <span>🔍 比對紀錄</span><span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <span>🔔 通知設定</span><span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <span>🔒 隱私權政策</span><span class="chevron">›</span>
+          </div>
+          <div class="menu-item">
+            <span>ℹ️ 關於本程式</span><span class="chevron">›</span>
+          </div>
+        </div>
+        <div class="spacer-bottom"></div>
+      </div>
+      <nav class="tab-bar">
+        <button class="tab" onclick="navigate('page-home')"><span>🏠</span><span>首頁</span></button>
+        <button class="tab" onclick="navigate('page-report')"><span>📋</span><span>報案</span></button>
+        <button class="tab" onclick="navigate('page-compare')"><span>🔍</span><span>比對</span></button>
+        <button class="tab" onclick="navigate('page-status')"><span>📊</span><span>查詢</span></button>
+        <button class="tab active" onclick="navigate('page-profile')"><span>👤</span><span>我的</span></button>
+      </nav>
+    </div>
+
+    <!-- ── Toast ── -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- ── Success Modal ── -->
+    <div id="modal-success" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-icon">✅</div>
+        <div class="modal-title">報案成功！</div>
+        <div class="modal-body">
+          您的報案已受理，報案編號：<br>
+          <strong id="case-number">TP-2026-00128</strong><br><br>
+          請記錄此編號，以便後續案件查詢。系統將以簡訊通知您。
+        </div>
+        <button class="btn-primary" onclick="closeModal()">返回首頁</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="src/js/app.js"></script>
+</body>
+</html>

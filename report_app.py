@@ -1,6 +1,6 @@
 """
 報案系統 v4.0 — 強化版
-新增：統計儀表板 / 搜尋篩選 / HTML 匯出 / 嚴重等級 / 並排 Diff / 鍵盤快捷鍵
+新增：搜尋篩選 / HTML 匯出 / 並排 Diff / 鍵盤快捷鍵
 """
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
@@ -15,40 +15,32 @@ KEYWORDS_FILE= os.path.join(_SCRIPT_DIR, "log_keywords.txt")
 EXPORTS_DIR  = os.path.join(_SCRIPT_DIR, "exports")
 
 # ─── Color Palette ───────────────────────────────────────────
-BG_DARK    = "#2D3A4A"
-BG_PANEL   = "#222E3C"
-BG_LIGHT   = "#F5F6F8"
+BG_DARK    = "#1B2B4B"
+BG_PANEL   = "#111E33"
+BG_LIGHT   = "#F5F3EF"
 BG_CARD    = "#FFFFFF"
-BG_INPUT   = "#EDF0F5"
-ACCENT     = "#D9623A"
-SUCCESS    = "#3DAF77"
-WARNING    = "#E0A93A"
-INFO       = "#5088C5"
-DANGER     = "#E53E3E"
-TEXT_DARK  = "#2C3A4A"
-TEXT_MID   = "#5A6472"
+BG_INPUT   = "#EDEBE6"
+ACCENT     = "#C4962A"
+SUCCESS    = "#2D6A4F"
+WARNING    = "#B7770D"
+INFO       = "#2A4270"
+DANGER     = "#C0392B"
+TEXT_DARK  = "#1B2B4B"
+TEXT_MID   = "#5A6478"
 TEXT_LIGHT = "#F8F9FA"
-TEXT_MUTED = "#9DAABA"
-BORDER     = "#DDE2EA"
+TEXT_MUTED = "#8A9AB0"
+BORDER     = "#DDD8CE"
 DIFF_DEL   = "#FEF7EE"
 DIFF_ADD   = "#F0FFF4"
-DOT_GREEN  = "#3DAF77"
-DOT_YELLOW = "#E0A93A"
-KW_TAG_BG  = "#C0522A"
-LOG_BG     = "#1E2837"
-LOG_FG     = "#DCE4EE"
-LOG_KW_FG  = "#F0B755"
-SH_COMPARE = "#354A61"
-SH_REPORT  = "#4A3028"
-SH_LOG     = "#27433A"
-SH_DASH    = "#2D3A50"
-
-SEVERITY_COLORS = {
-    "低": ("#3DAF77", "#D1FAE5"),
-    "中": ("#E0A93A", "#FEF3C7"),
-    "高": ("#E53E3E", "#FEE2E2"),
-    "嚴重": ("#7C3AED", "#EDE9FE"),
-}
+DOT_GREEN  = "#2D6A4F"
+DOT_YELLOW = "#C4962A"
+KW_TAG_BG  = "#1B2B4B"
+LOG_BG     = "#0F1A2E"
+LOG_FG     = "#D4DCE8"
+LOG_KW_FG  = "#E8C468"
+SH_COMPARE = "#1B3A5C"
+SH_REPORT  = "#2A1F10"
+SH_LOG     = "#1A3A2A"
 
 RCP_FIELDS = [
     "Tool ID", "RCP MODIFY TIME", "RCP SCAN TIME",
@@ -225,23 +217,21 @@ def export_html(rec):
         buf = io.BytesIO(); thumb.save(buf, "PNG")
         b64 = base64.b64encode(buf.getvalue()).decode()
         img_html += f'<div style="display:inline-block;margin:6px;text-align:center"><img src="data:image/png;base64,{b64}" style="border-radius:6px;border:1px solid #ddd"><br><small style="color:#666">{name}</small></div>'
-    sev_color = SEVERITY_COLORS.get(rec.get("severity","中"), ("#E0A93A","#FEF3C7"))
     html = f"""<!DOCTYPE html>
 <html lang="zh-TW"><head><meta charset="UTF-8">
 <title>Issue #{rec['id']} 報告</title>
 <style>
-  body{{font-family:-apple-system,'PingFang TC',sans-serif;background:#F5F6F8;color:#2C3A4A;margin:0;padding:24px}}
-  .card{{background:#fff;border-radius:12px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}}
-  h1{{font-size:22px;margin:0 0 4px}} h2{{font-size:15px;margin:0 0 12px;color:#D9623A}}
-  table{{width:100%;border-collapse:collapse}} th{{background:#2D3A4A;color:#fff;padding:8px 10px;text-align:left;font-size:13px}}
-  .badge{{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600}}
+  body{{font-family:-apple-system,'PingFang TC',sans-serif;background:#F5F3EF;color:#1B2B4B;margin:0;padding:24px}}
+  .card{{background:#fff;border-radius:10px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:4px solid #C4962A}}
+  h1{{font-size:22px;margin:0 0 4px}} h2{{font-size:13px;font-weight:700;margin:0 0 12px;color:#C4962A;text-transform:uppercase;letter-spacing:.05em}}
+  table{{width:100%;border-collapse:collapse}} th{{background:#1B2B4B;color:#fff;padding:8px 10px;text-align:left;font-size:13px}}
+  .badge{{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:700}}
 </style></head><body>
 <div class="card">
   <h1>⚑ Issue #{rec['id']} 報案報告</h1>
-  <div style="color:#888;font-size:13px">{rec['time']} &nbsp;｜&nbsp; {rec.get('golden_file','—')} vs {rec.get('issue_file','—')}</div>
+  <div style="color:#8A9AB0;font-size:13px">{rec['time']} &nbsp;｜&nbsp; {rec.get('golden_file','—')} vs {rec.get('issue_file','—')}</div>
   <div style="margin-top:8px">
-    <span class="badge" style="background:{sev_color[1]};color:{sev_color[0]}">嚴重度：{rec.get('severity','中')}</span>
-    {''.join(f'<span class="badge" style="background:#EDE9FE;color:#7C3AED;margin-left:6px">{t}</span>' for t in rec.get('tags',[]))}
+    {''.join(f'<span class="badge" style="background:#1B2B4B;color:#F0D080;margin-right:6px">{t}</span>' for t in rec.get('tags',[]))}
   </div>
 </div>
 <div class="card"><h2>RCP 欄位比對</h2>
@@ -298,15 +288,14 @@ class ReportApp(tk.Tk):
         self._log_scanning = False
 
         # 篩選狀態
-        self._filter_text     = tk.StringVar()
-        self._filter_severity = tk.StringVar(value="全部")
-        self._sort_col        = "id"
-        self._sort_asc        = False
+        self._filter_text = tk.StringVar()
+        self._sort_col    = "id"
+        self._sort_asc    = False
 
         self._build_ui()
         self._bind_shortcuts()
         self.current_section = None
-        self._nav_select("dashboard")
+        self._nav_select("main")
         if self.issue_records:
             self._update_badge()
             self._refresh_issue_list()
@@ -317,9 +306,8 @@ class ReportApp(tk.Tk):
         self.bind("<Control-l>", lambda e: self._pick_log_file())
         self.bind("<Control-Return>", lambda e: self._submit_report())
         self.bind("<Control-e>", lambda e: self._export_selected())
-        self.bind("<F1>", lambda e: self._nav_select("dashboard"))
-        self.bind("<F2>", lambda e: self._nav_select("main"))
-        self.bind("<F3>", lambda e: self._nav_select("tool_issue"))
+        self.bind("<F1>", lambda e: self._nav_select("main"))
+        self.bind("<F2>", lambda e: self._nav_select("tool_issue"))
 
     # ── Sidebar ────────────────────────────────────────────────
     def _build_ui(self):
@@ -337,15 +325,14 @@ class ReportApp(tk.Tk):
         self.nav_buttons = {}
         self.issue_count_lbl = None
         for key, icon, label, shortcut in [
-            ("dashboard",  "▦",  "儀表板",   "F1"),
-            ("main",       "⊞",  "報案作業", "F2"),
-            ("tool_issue", "☰",  "Tool Issue","F3"),
+            ("main",       "⊞",  "報案作業",  "F1"),
+            ("tool_issue", "☰",  "Tool Issue", "F2"),
         ]:
             self.nav_buttons[key] = self._make_nav_btn(key, icon, label, shortcut)
 
         tk.Frame(self.sidebar, bg="#374D65", height=1).pack(fill="x", padx=16, pady=8)
         tk.Label(self.sidebar, text="快捷鍵", font=("Arial", 8, "bold"), bg=BG_PANEL, fg=TEXT_MUTED).pack(anchor="w", padx=16)
-        for txt in ["Ctrl+R  開始比對", "Ctrl+L  選 Log", "Ctrl+↵  提交報案", "Ctrl+E  匯出報告"]:
+        for txt in ["F1  報案作業", "F2  Tool Issue", "Ctrl+R  開始比對", "Ctrl+L  選 Log", "Ctrl+↵  提交報案", "Ctrl+E  匯出報告"]:
             tk.Label(self.sidebar, text=txt, font=("Arial", 7), bg=BG_PANEL, fg="#3D5270").pack(anchor="w", padx=20, pady=1)
 
         tk.Label(self.sidebar, text="v4.0.0", font=("Arial", 8), bg=BG_PANEL, fg="#3D5270").pack(side="bottom", pady=10)
@@ -354,7 +341,6 @@ class ReportApp(tk.Tk):
         self.content.pack(side="left", fill="both", expand=True)
 
         self.pages = {}
-        self.pages["dashboard"]  = self._build_dashboard_page()
         self.pages["main"]       = self._build_main_page()
         self.pages["tool_issue"] = self._build_tool_issue_page()
 
@@ -398,16 +384,15 @@ class ReportApp(tk.Tk):
         btn.configure(bg=ACCENT); btn._icon.configure(bg=ACCENT, fg=TEXT_LIGHT); btn._text.configure(bg=ACCENT, fg=TEXT_LIGHT)
         if btn._badge: btn._badge.configure(bg="#C0391B")
         self.pages[key].pack(fill="both", expand=True)
-        if key == "dashboard": self._refresh_dashboard()
 
     def _update_badge(self):
         if self.issue_count_lbl:
             self.issue_count_lbl.configure(text=str(len(self.issue_records)))
 
     # ══════════════════════════════════════════════════════════
-    # 儀表板
+    # [REMOVED: 儀表板]
     # ══════════════════════════════════════════════════════════
-    def _build_dashboard_page(self):
+    def _UNUSED_build_dashboard_page(self):
         page = tk.Frame(self.content, bg=BG_LIGHT)
         hdr = tk.Frame(page, bg=BG_DARK, height=54)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
@@ -446,7 +431,7 @@ class ReportApp(tk.Tk):
 
         return page
 
-    def _refresh_dashboard(self):
+    def _UNUSED_refresh_dashboard(self):
         # 統計卡片
         for w in self._dash_cards_frame.winfo_children(): w.destroy()
         total   = len(self.issue_records)
@@ -753,22 +738,11 @@ class ReportApp(tk.Tk):
         canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
 
         pad = 12
-        # 嚴重度 + 標籤
+        # 標籤
         meta_card = tk.Frame(inner, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         meta_card.pack(fill="x", padx=pad, pady=(10,6))
         mi = tk.Frame(meta_card, bg=BG_CARD, padx=10, pady=8); mi.pack(fill="x")
-        tk.Label(mi, text="嚴重度", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w")
-        sev_row = tk.Frame(mi, bg=BG_CARD); sev_row.pack(fill="x", pady=(4,6))
-        self._sev_var = tk.StringVar(value="中")
-        for sev in ("低","中","高","嚴重"):
-            fg, bg_c = SEVERITY_COLORS[sev]
-            rb = tk.Radiobutton(sev_row, text=sev, variable=self._sev_var, value=sev,
-                                font=("Arial", 9, "bold"), bg=BG_CARD, fg=fg,
-                                selectcolor=bg_c, activebackground=BG_CARD,
-                                relief="flat", cursor="hand2", indicatoron=0,
-                                padx=8, pady=3)
-            rb.pack(side="left", padx=(0,5))
-        tk.Label(mi, text="標籤（逗號分隔）", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w", pady=(4,2))
+        tk.Label(mi, text="標籤（逗號分隔）", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w", pady=(0,2))
         self.tags_entry = tk.Entry(mi, font=("Arial", 9), bg=BG_INPUT, fg=TEXT_DARK, relief="flat",
                                    highlightthickness=1, highlightcolor=ACCENT, highlightbackground=BORDER)
         self.tags_entry.pack(fill="x")
@@ -992,11 +966,11 @@ class ReportApp(tk.Tk):
             try: self._log_progress_lbl.destroy()
             except: pass
         for lineno, line, kws in batch:
-            row = tk.Frame(self.log_hit_inner, bg="#1E2B3C",
-                           highlightbackground="#2E3F55", highlightthickness=1)
+            row = tk.Frame(self.log_hit_inner, bg="#0F1E35",
+                           highlightbackground="#1B2F4A", highlightthickness=1)
             row.pack(fill="x", pady=1, padx=4)
             tk.Label(row, text=f"L{lineno}", font=("Courier",7,"bold"),
-                     bg="#2A3D55", fg="#94A3B8", padx=6, pady=4).pack(side="left")
+                     bg="#1B2B4B", fg="#8A9AB0", padx=6, pady=4).pack(side="left")
             kw_f = tk.Frame(row, bg="#1E2B3C"); kw_f.pack(side="right", padx=5, pady=3)
             for kw in kws:
                 tk.Label(kw_f, text=kw, font=("Arial",7,"bold"),
@@ -1115,11 +1089,10 @@ class ReportApp(tk.Tk):
         tags = [t.strip() for t in tags_raw.split(",") if t.strip() and not t.strip().startswith("例")] if tags_raw else []
         hit_kws = list(dict.fromkeys(kw for _,_,kws in self.log_hits for kw in kws))
         record = {
-            "id":           len(self.issue_records)+1,
-            "time":         datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "desc":         desc,
-            "severity":     self._sev_var.get(),
-            "tags":         tags,
+            "id":    len(self.issue_records)+1,
+            "time":  datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "desc":  desc,
+            "tags":  tags,
             "images":       list(self.report_images),
             "golden":       dict(self.golden_data),
             "issue":        dict(self.issue_data),
@@ -1138,7 +1111,6 @@ class ReportApp(tk.Tk):
         self.report_images = []; self._photo_refs.clear()
         self._refresh_img_grid()
         self.desc_text.delete("1.0","end")
-        self._sev_var.set("中")
         self.submit_status.configure(text=f"✓ 已提交 Issue #{record['id']}")
         self.after(600, lambda: self._nav_select("tool_issue"))
 
@@ -1165,13 +1137,6 @@ class ReportApp(tk.Tk):
         search_entry.bind("<KeyRelease>", lambda e: self._refresh_issue_list())
         tk.Label(search_f, text="搜尋描述/Tool ID/LOT ID", font=("Arial",7), bg="#EEF1F6", fg=TEXT_MUTED).pack(side="left", padx=4)
 
-        # 嚴重度篩選
-        tk.Label(toolbar, text="嚴重度：", font=("Arial",9), bg="#EEF1F6", fg=TEXT_MID).pack(side="left", padx=(14,2))
-        sev_cb = ttk.Combobox(toolbar, textvariable=self._filter_severity, width=6, state="readonly",
-                               values=["全部","低","中","高","嚴重"])
-        sev_cb.pack(side="left")
-        sev_cb.bind("<<ComboboxSelected>>", lambda e: self._refresh_issue_list())
-
         # 按鈕群
         tk.Button(toolbar, text="Ctrl+E  匯出選取", font=("Arial",8,"bold"),
                   bg=INFO, fg=TEXT_LIGHT, relief="flat", padx=10, pady=5, cursor="hand2",
@@ -1185,10 +1150,10 @@ class ReportApp(tk.Tk):
                   command=self._clear_selection).pack(side="right", padx=2)
 
         self._col_defs = [
-            ("",               3),("☐",             2),("#",             3),
-            ("時間",           12),("嚴重度",          5),("Tool ID",      10),
-            ("RCP NAME",       14),("LOT ID",          10),("RCP MODIFY TIME",16),
-            ("RCP SCAN TIME",  14),("SCAN END TIME",   14),("Log TS",       0),("Issue 描述", 0),
+            ("",              3),("☐",  2),("#",   3),
+            ("時間",          12),("Tool ID",      10),
+            ("RCP NAME",      14),("LOT ID",        10),("RCP MODIFY TIME",16),
+            ("RCP SCAN TIME", 14),("SCAN END TIME", 14),("Log TS", 0),("Issue 描述", 0),
         ]
         th = tk.Frame(page, bg=BG_DARK)
         th.pack(fill="x")
@@ -1209,10 +1174,8 @@ class ReportApp(tk.Tk):
 
     def _filtered_records(self):
         q   = self._filter_text.get().lower()
-        sev = self._filter_severity.get()
         out = []
         for r in self.issue_records:
-            if sev != "全部" and r.get("severity","中") != sev: continue
             if q and not any(q in str(r.get(f,"")).lower() for f in ["desc","Tool ID","LOT ID","RCP NAME","time"]): continue
             out.append(r)
         # sort
@@ -1270,24 +1233,19 @@ class ReportApp(tk.Tk):
             chk.pack(side="left", padx=2)
 
             cd = self._col_defs
-            sev = rec.get("severity","中")
-            sev_fg, sev_bg = SEVERITY_COLORS.get(sev, (TEXT_MID, BG_INPUT))
             for txt, w, fg, font_str in [
-                (f"#{rec['id']}",            cd[2][1],  TEXT_MUTED, "Arial 8"),
-                (rec["time"],                cd[3][1],  TEXT_MID,   "Arial 8"),
+                (f"#{rec['id']}",  cd[2][1], TEXT_MUTED, "Arial 8"),
+                (rec["time"],      cd[3][1], TEXT_MID,   "Arial 8"),
             ]:
                 tk.Label(row, text=txt or "—", font=font_str, bg=bg, fg=fg, anchor="w",
                          width=w, padx=6, pady=7).pack(side="left")
-            # 嚴重度 badge
-            tk.Label(row, text=sev, font=("Arial",7,"bold"), bg=sev_bg, fg=sev_fg,
-                     padx=5, pady=2, width=cd[4][1]).pack(side="left", padx=4)
             for txt, w, fg, font_str in [
-                (rec.get("Tool ID","—"),         cd[5][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("RCP NAME","—"),         cd[6][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("LOT ID","—"),           cd[7][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("RCP MODIFY TIME","—"),  cd[8][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("RCP SCAN TIME","—"),    cd[9][1],  TEXT_DARK,  "Courier 8"),
-                (rec.get("SCAN END TIME","—"),    cd[10][1], TEXT_DARK,  "Courier 8"),
+                (rec.get("Tool ID","—"),         cd[4][1],  TEXT_DARK,  "Courier 8"),
+                (rec.get("RCP NAME","—"),         cd[5][1],  TEXT_DARK,  "Courier 8"),
+                (rec.get("LOT ID","—"),           cd[6][1],  TEXT_DARK,  "Courier 8"),
+                (rec.get("RCP MODIFY TIME","—"),  cd[7][1],  TEXT_DARK,  "Courier 8"),
+                (rec.get("RCP SCAN TIME","—"),    cd[8][1],  TEXT_DARK,  "Courier 8"),
+                (rec.get("SCAN END TIME","—"),    cd[9][1],  TEXT_DARK,  "Courier 8"),
             ]:
                 tk.Label(row, text=txt or "—", font=font_str, bg=bg, fg=fg, anchor="w",
                          width=w, padx=6, pady=7).pack(side="left")
@@ -1392,11 +1350,8 @@ class ReportApp(tk.Tk):
         popup.title(f"Issue #{rec['id']} 詳情")
         popup.geometry("840x700"); popup.configure(bg=BG_LIGHT); popup.grab_set()
         hdr = tk.Frame(popup, bg=BG_DARK); hdr.pack(fill="x")
-        sev = rec.get("severity","中"); sev_fg, sev_bg = SEVERITY_COLORS.get(sev,(TEXT_MID,BG_INPUT))
         tk.Label(hdr, text=f"Issue #{rec['id']}  —  {rec['time']}",
                  font=("Arial",13,"bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=20, pady=12)
-        tk.Label(hdr, text=sev, font=("Arial",10,"bold"), bg=sev_bg, fg=sev_fg,
-                 padx=10, pady=4).pack(side="left", padx=8)
         tk.Button(hdr, text="⬇ 匯出 HTML", font=("Arial",9,"bold"),
                   bg=INFO, fg=TEXT_LIGHT, relief="flat", padx=14, pady=6, cursor="hand2",
                   command=lambda: self._export_one(rec)).pack(side="right", padx=16, pady=8)

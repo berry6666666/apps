@@ -5,8 +5,19 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 from PIL import Image, ImageTk
-import os, re, json, base64, io, threading, webbrowser
+import os, re, json, base64, io, threading, webbrowser, sys
 from datetime import datetime
+
+# ─── Windows DPI 修正（防止模糊縮放）────────────────────────
+if sys.platform == "win32":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Per-Monitor DPI aware
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
 
 # ─── Persistence ─────────────────────────────────────────────
 _SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))

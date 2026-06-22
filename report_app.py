@@ -179,7 +179,7 @@ def diff_dicts(golden, issue):
     return rows
 
 # ─── Log Scanner ─────────────────────────────────────────────
-_LOG_TS_RE = re.compile(r'^([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{2}:\d{2}:\d{2})(?:\.\d+)?')
+_LOG_TS_RE = re.compile(r'^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{1,2}:\d{2}:\d{2})(?:\.\d+)?')
 _MONTH_MAP = {"Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
               "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12}
 

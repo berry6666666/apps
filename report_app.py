@@ -1213,84 +1213,101 @@ class ReportApp(tk.Tk):
                   bg=BG_LIGHT, fg=TEXT_MID, relief="flat", padx=8, pady=5, cursor="hand2",
                   command=self._clear_selection).pack(side="right", padx=2)
 
-        self._col_defs = [
-            ("",              3),("☐",  2),("#",   3),
-            ("Time",          10),("Tool ID",      9),
-            ("RCP NAME",      12),("LOT ID",        9),("RCP MODIFY TIME",14),
-            ("RCP SCAN TIME", 13),("SCAN END TIME", 13),("Log TS", 0),("Description", 0),
+        # ttk.Treeview gives a real, strictly-aligned table with a frozen
+        # header and consistent column separators.
+        # (col_id, heading, width, anchor, stretch)
+        # (col_id, heading, width, minwidth, anchor, stretch)
+        self._tree_cols = [
+            ("del",   "",                34,  34,  "center", False),
+            ("id",    "#",               44,  40,  "center", False),
+            ("time",  "Time",            108, 80,  "w",      False),
+            ("tool",  "Tool id",         78,  60,  "w",      False),
+            ("rcp",   "RCP name",        120, 80,  "w",      True),
+            ("lot",   "Lot id",          76,  60,  "w",      False),
+            ("mtime", "RCP modify time", 112, 90,  "w",      False),
+            ("stime", "RCP scan time",   112, 90,  "w",      False),
+            ("etime", "Scan end time",   112, 90,  "w",      False),
+            ("log",   "Log ts",          100, 70,  "w",      False),
+            ("desc",  "Description",     180, 100, "w",      True),
+            ("exp",   "Export",          64,  56,  "center", False),
         ]
-        # Proportional column specs for grid-based table:
-        # (header_label, data_key, weight, minsize)
-        self._tbl_cols = [
-            ("#",               "id",              2,  28),
-            ("Time",            "time",            6,  90),
-            ("Tool id",         "Tool ID",         5,  70),
-            ("RCP name",        "RCP NAME",        8,  90),
-            ("Lot id",          "LOT ID",          5,  70),
-            ("RCP modify time", "RCP MODIFY TIME", 9, 110),
-            ("RCP scan time",   "RCP SCAN TIME",   9, 110),
-            ("Scan end time",   "SCAN END TIME",   9, 110),
-            ("Log ts",          "__log__",         5,  60),
-            ("Description",     "__desc__",       12, 100),
-        ]
-        # Put scrollbar, header, and rows all in the same container so they
-        # share exactly the same usable width → column grid lines align perfectly.
+
+        style = ttk.Style()
+        try: style.theme_use("clam")
+        except: pass
+        style.configure("Issue.Treeview",
+                        background=BG_CARD, fieldbackground=BG_CARD, foreground=TEXT_DARK,
+                        rowheight=30, font=("Arial", 9), borderwidth=0)
+        style.configure("Issue.Treeview.Heading",
+                        background=BG_DARK, foreground=TEXT_LIGHT,
+                        font=("Arial", 9, "bold"), relief="flat", padding=(6, 6))
+        style.map("Issue.Treeview.Heading", background=[("active", BG_PANEL)])
+        style.map("Issue.Treeview",
+                  background=[("selected", "#DCEAF7")],
+                  foreground=[("selected", TEXT_DARK)])
+
         table_outer = tk.Frame(page, bg=BG_LIGHT)
-        table_outer.pack(fill="both", expand=True)
+        table_outer.pack(fill="both", expand=True, padx=12, pady=(4, 10))
 
-        # Scrollbar on the far right of table_outer
         vsb = ttk.Scrollbar(table_outer, orient="vertical")
+        hsb = ttk.Scrollbar(table_outer, orient="horizontal")
+        col_ids = [c[0] for c in self._tree_cols]
+        self.issue_tree = ttk.Treeview(table_outer, columns=col_ids, show="headings",
+                                       selectmode="extended", style="Issue.Treeview",
+                                       yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+        vsb.configure(command=self.issue_tree.yview)
+        hsb.configure(command=self.issue_tree.xview)
         vsb.pack(side="right", fill="y")
+        hsb.pack(side="bottom", fill="x")
+        self.issue_tree.pack(side="left", fill="both", expand=True)
 
-        # left_col holds BOTH the header and the canvas so they share
-        # exactly the same pixel width (scrollbar is already claimed)
-        left_col = tk.Frame(table_outer, bg=BG_LIGHT)
-        left_col.pack(side="left", fill="both", expand=True)
+        for cid, heading, width, minwidth, anchor, stretch in self._tree_cols:
+            self.issue_tree.heading(cid, text=heading,
+                                    command=(lambda c=cid: self._sort_tree(c)) if cid not in ("del","exp") else "")
+            self.issue_tree.column(cid, width=width, minwidth=minwidth, anchor=anchor, stretch=stretch)
 
-        th = tk.Frame(left_col, bg=BG_DARK)
-        th.pack(side="top", fill="x")
-        self._apply_table_cols(th)
-        tk.Label(th, text="", bg=BG_DARK, width=4).grid(row=0, column=0)
-        tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=1, sticky="ns")
-        tk.Label(th, text="☐", font=("Arial",8,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
-                 anchor="center", padx=4, pady=6).grid(row=0, column=2)
-        tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=3, sticky="ns")
-        for i, (label, _, _w, _ms) in enumerate(self._tbl_cols):
-            dc = i * 2 + 4
-            tk.Label(th, text=label, font=("Arial",8,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
-                     anchor="w", padx=6, pady=6).grid(row=0, column=dc, sticky="ew")
-            if i < len(self._tbl_cols) - 1:
-                tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=dc+1, sticky="ns")
-        tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=4+len(self._tbl_cols)*2-1, sticky="ns")
-        tk.Label(th, text="", bg=BG_DARK, width=7).grid(row=0, column=4+len(self._tbl_cols)*2)
+        # zebra striping + keyword highlight (light yellow row, matches log panel)
+        self.issue_tree.tag_configure("odd",  background=BG_CARD)
+        self.issue_tree.tag_configure("even", background="#F2F5FA")
+        self.issue_tree.tag_configure("hit",  background="#FFF4D6")
 
-        canvas = tk.Canvas(left_col, bg=BG_LIGHT, highlightthickness=0, yscrollcommand=vsb.set)
-        vsb.configure(command=canvas.yview)
-        canvas.pack(side="left", fill="both", expand=True)
-        self.issue_list_inner = tk.Frame(canvas, bg=BG_LIGHT)
-        _wid = canvas.create_window((0, 0), window=self.issue_list_inner, anchor="nw")
-        self.issue_list_inner.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.bind("<Configure>", lambda e: canvas.itemconfig(_wid, width=e.width))
-        canvas.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+        self.issue_tree.bind("<Button-1>", self._on_tree_click)
+        self.issue_tree.bind("<Double-1>", self._on_tree_double)
+
+        self._rec_by_iid = {}
         self._selected_ids = set()
-        self._show_empty_placeholder()
+        self._refresh_issue_list()
         return page
 
-    def _apply_table_cols(self, frame):
-        """Apply proportional grid column config to a table row/header frame."""
-        frame.columnconfigure(0, minsize=32,  weight=0)   # del btn
-        frame.columnconfigure(2, minsize=26,  weight=0)   # checkbox
-        for i, (_, _, w, ms) in enumerate(self._tbl_cols):
-            dc = i * 2 + 4
-            frame.columnconfigure(dc, weight=w, minsize=ms)
-            frame.columnconfigure(dc + 1, minsize=1, weight=0)  # vsep
-        frame.columnconfigure(3, minsize=1, weight=0)     # sep after chk
-        last_export_col = 4 + len(self._tbl_cols) * 2
-        frame.columnconfigure(last_export_col, minsize=58, weight=0)  # export btn
+    def _sort_tree(self, col):
+        key_map = {"id":"id","time":"time","tool":"Tool ID","rcp":"RCP NAME","lot":"LOT ID",
+                   "mtime":"RCP MODIFY TIME","stime":"RCP SCAN TIME","etime":"SCAN END TIME",
+                   "log":"log_keywords","desc":"desc"}
+        k = key_map.get(col, "id")
+        if self._sort_col == k: self._sort_asc = not self._sort_asc
+        else: self._sort_col, self._sort_asc = k, True
+        self._refresh_issue_list()
 
-    def _show_empty_placeholder(self):
-        tk.Label(self.issue_list_inner, text="No records yet. Submit a report to see data here.",
-                 font=("Arial",11), bg=BG_LIGHT, fg=TEXT_MUTED, pady=60).pack()
+    def _on_tree_click(self, event):
+        if self.issue_tree.identify("region", event.x, event.y) != "cell": return
+        col = self.issue_tree.identify_column(event.x)   # '#1', '#2', …
+        iid = self.issue_tree.identify_row(event.y)
+        if not iid: return
+        try: cid = self._tree_cols[int(col[1:]) - 1][0]
+        except (ValueError, IndexError): return
+        rec = self._rec_by_iid.get(iid)
+        if rec is None: return
+        if cid == "del":
+            self._delete_record(rec["id"]); return "break"
+        if cid == "exp":
+            self._export_one(rec); return "break"
+        if cid == "log" and rec.get("log_keywords"):
+            self._show_log_detail(rec); return "break"
+
+    def _on_tree_double(self, event):
+        iid = self.issue_tree.identify_row(event.y)
+        rec = self._rec_by_iid.get(iid)
+        if rec is not None: self._show_issue_detail(rec)
 
     def _filtered_records(self):
         q   = self._filter_text.get().lower()
@@ -1304,14 +1321,15 @@ class ReportApp(tk.Tk):
         return out
 
     def _select_all(self):
-        for r in self._filtered_records(): self._selected_ids.add(r["id"])
-        self._refresh_issue_list()
+        self.issue_tree.selection_set(self.issue_tree.get_children())
 
     def _clear_selection(self):
-        self._selected_ids.clear(); self._refresh_issue_list()
+        self.issue_tree.selection_remove(self.issue_tree.selection())
 
     def _export_selected(self):
-        targets = [r for r in self.issue_records if r["id"] in self._selected_ids]
+        sel_ids = {self._rec_by_iid[i]["id"] for i in self.issue_tree.selection()
+                   if i in self._rec_by_iid}
+        targets = [r for r in self.issue_records if r["id"] in sel_ids]
         if not targets:
             # export all filtered
             targets = self._filtered_records()
@@ -1328,109 +1346,47 @@ class ReportApp(tk.Tk):
                 except: webbrowser.open(f"file://{EXPORTS_DIR}")
 
     def _refresh_issue_list(self):
-        for w in self.issue_list_inner.winfo_children(): w.destroy()
+        tree = self.issue_tree
+        prev_sel = {self._rec_by_iid[i]["id"] for i in tree.selection() if i in self._rec_by_iid}
+        tree.delete(*tree.get_children())
+        self._rec_by_iid = {}
         records = self._filtered_records()
-        if not records:
-            self._show_empty_placeholder(); return
 
         for i, rec in enumerate(reversed(records)):
-            bg = BG_CARD if i % 2 == 0 else BG_LIGHT
-            if rec["id"] in self._selected_ids: bg = "#EFF6FF"
+            log_kws = rec.get("log_keywords", [])
+            if log_kws:
+                log_txt = ", ".join(log_kws[:3]) + (f"  +{len(log_kws)-3}" if len(log_kws) > 3 else "")
+            else:
+                log_txt = "—"
 
-            row = tk.Frame(self.issue_list_inner, bg=bg)
-            row.pack(fill="x")
-            self._apply_table_cols(row)
+            n_img = len(rec.get("images", []))
+            desc_short = rec.get("desc", "")[:48] + ("…" if len(rec.get("desc","")) > 48 else "")
+            tags = rec.get("tags", [])
+            desc_txt = (("[" + ", ".join(tags[:3]) + "]  ") if tags else "") + desc_short
+            if n_img: desc_txt += f"  📷{n_img}"
 
-            # Delete btn (col 0)
-            del_btn = tk.Button(row, text="🗑", font=("Arial",9), bg=bg, fg=DANGER,
-                                relief="flat", cursor="hand2", borderwidth=0,
-                                activebackground=bg, activeforeground=ACCENT,
-                                command=lambda rid=rec["id"]: self._delete_record(rid))
-            del_btn.grid(row=0, column=0, padx=(4,2), pady=4)
-            tk.Frame(row, bg=BORDER, width=1).grid(row=0, column=1, sticky="ns")
+            values = (
+                "🗑",
+                f"#{rec['id']}",
+                rec.get("time", "—"),
+                rec.get("Tool ID", "—"),
+                rec.get("RCP NAME", "—"),
+                rec.get("LOT ID", "—"),
+                rec.get("RCP MODIFY TIME", "—"),
+                rec.get("RCP SCAN TIME", "—"),
+                rec.get("SCAN END TIME", "—"),
+                log_txt,
+                desc_txt or "—",
+                "⬇ HTML",
+            )
+            tags_style = ["hit"] if log_kws else ["odd" if i % 2 == 0 else "even"]
+            iid = str(rec["id"])
+            tree.insert("", "end", iid=iid, values=values, tags=tags_style)
+            self._rec_by_iid[iid] = rec
 
-            # Checkbox (col 2)
-            chk_var = tk.BooleanVar(value=rec["id"] in self._selected_ids)
-            tk.Checkbutton(row, variable=chk_var, bg=bg, relief="flat",
-                           activebackground=bg, cursor="hand2",
-                           command=lambda v=chk_var, rid=rec["id"]: self._toggle_select(v, rid)
-                           ).grid(row=0, column=2, padx=2, pady=4)
-            tk.Frame(row, bg=BORDER, width=1).grid(row=0, column=3, sticky="ns")
-
-            # Data columns
-            data_values = {
-                "id":              f"#{rec['id']}",
-                "time":            rec.get("time","—"),
-                "Tool ID":         rec.get("Tool ID","—"),
-                "RCP NAME":        rec.get("RCP NAME","—"),
-                "LOT ID":          rec.get("LOT ID","—"),
-                "RCP MODIFY TIME": rec.get("RCP MODIFY TIME","—"),
-                "RCP SCAN TIME":   rec.get("RCP SCAN TIME","—"),
-                "SCAN END TIME":   rec.get("SCAN END TIME","—"),
-            }
-            mono_keys = {"Tool ID","RCP NAME","LOT ID","RCP MODIFY TIME","RCP SCAN TIME","SCAN END TIME"}
-            fg_map    = {"id": TEXT_MUTED, "time": TEXT_MID}
-
-            for ci, (_, key, _, _) in enumerate(self._tbl_cols):
-                dc = ci * 2 + 4
-
-                if key == "__log__":
-                    log_kws = rec.get("log_keywords", [])
-                    cell = tk.Frame(row, bg=bg)
-                    cell.grid(row=0, column=dc, sticky="ew", padx=4, pady=3)
-                    if log_kws:
-                        for kw in log_kws[:3]:
-                            pill = tk.Label(cell, text=kw, font=("Arial",6,"bold"),
-                                            bg=KW_TAG_BG, fg=TEXT_LIGHT, padx=3, pady=1, cursor="hand2")
-                            pill.pack(side="left", padx=(0,2))
-                            pill.bind("<Button-1>", lambda e, r=rec: self._show_log_detail(r))
-                        if len(log_kws) > 3:
-                            tk.Label(cell, text=f"+{len(log_kws)-3}", font=("Arial",6),
-                                     bg=bg, fg=TEXT_MUTED).pack(side="left")
-                    else:
-                        tk.Label(cell, text="—", font=("Arial",8), bg=bg, fg=TEXT_MUTED).pack(side="left")
-
-                elif key == "__desc__":
-                    n_img = len(rec.get("images",[]))
-                    desc_short = rec["desc"][:40] + ("…" if len(rec["desc"]) > 40 else "")
-                    cell = tk.Frame(row, bg=bg)
-                    cell.grid(row=0, column=dc, sticky="ew", padx=2, pady=2)
-                    tags = rec.get("tags", [])
-                    if tags:
-                        tf = tk.Frame(cell, bg=bg); tf.pack(anchor="w")
-                        for tag in tags[:3]:
-                            tk.Label(tf, text=tag, font=("Arial",6), bg="#EDE9FE", fg="#7C3AED",
-                                     padx=3, pady=0).pack(side="left", padx=(0,2))
-                    dl = tk.Label(cell, text=desc_short + (f"  📷{n_img}" if n_img else ""),
-                                  font=("Arial",8,"underline"), bg=bg, fg=INFO,
-                                  anchor="w", padx=4, pady=2, cursor="hand2")
-                    dl.pack(side="left")
-                    dl.bind("<Button-1>", lambda e, r=rec: self._show_issue_detail(r))
-
-                else:
-                    val = data_values.get(key, "—") or "—"
-                    font_f = "Courier" if key in mono_keys else "Arial"
-                    fg_c   = fg_map.get(key, TEXT_DARK)
-                    tk.Label(row, text=val, font=(font_f, 8), bg=bg, fg=fg_c,
-                             anchor="w", padx=5, pady=6).grid(row=0, column=dc, sticky="ew")
-
-                # vertical separator after each col except last data col
-                if ci < len(self._tbl_cols) - 1:
-                    tk.Frame(row, bg=BORDER, width=1).grid(row=0, column=dc+1, sticky="ns")
-
-            # last separator + export btn
-            last_sep = 4 + len(self._tbl_cols) * 2 - 1
-            tk.Frame(row, bg=BORDER, width=1).grid(row=0, column=last_sep, sticky="ns")
-            export_col = last_sep + 1
-            tk.Button(row, text="⬇ HTML", font=("Arial",7,"bold"),
-                      bg="#EFF6FF", fg=INFO, relief="flat", padx=6, pady=3, cursor="hand2",
-                      command=lambda r=rec: self._export_one(r)).grid(row=0, column=export_col, padx=4, pady=4)
-
-            tk.Frame(self.issue_list_inner, bg=BORDER, height=1).pack(fill="x")
-
-    def _toggle_select(self, var, rid):
-        if var.get(): self._selected_ids.add(rid)
-        else:         self._selected_ids.discard(rid)
+        # restore prior selection where possible
+        restore = [str(rid) for rid in prev_sel if str(rid) in self._rec_by_iid]
+        if restore: tree.selection_set(restore)
 
     def _export_one(self, rec):
         try:

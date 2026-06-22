@@ -202,7 +202,7 @@ def _parse_rcp_dt(s, ref_year):
 def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):
     use_range = scan_start and scan_end
     ref_year  = scan_start.year if use_range else datetime.now().year
-    hits, in_range, skipped = [], 0, 0
+    hits, all_lines, in_range, skipped = [], [], 0, 0
     for lineno, line in enumerate(text.splitlines(), 1):
         ts = _parse_log_ts(line, ref_year)
         if use_range:
@@ -210,8 +210,9 @@ def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):
             if not (scan_start <= ts <= scan_end): continue
             in_range += 1
         matched = [kw for kw in keywords if kw in line]
+        all_lines.append((lineno, line, matched))
         if matched: hits.append((lineno, line, matched))
-    return hits, in_range, skipped
+    return hits, all_lines, in_range, skipped
 
 # ─── HTML Export ─────────────────────────────────────────────
 def export_html(rec):
@@ -302,6 +303,7 @@ class ReportApp(tk.Tk):
         self.issue_records = load_records()
         self.log_raw_text  = ""
         self.log_hits      = []
+        self.log_all_lines = []
         self.log_filename  = ""
         self.log_t_start   = None
         self.log_t_end     = None
@@ -528,7 +530,7 @@ class ReportApp(tk.Tk):
         hdr = tk.Frame(page, bg=BG_DARK, height=54)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
         tk.Label(hdr, text="File Report", font=("Arial", 15, "bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=24, pady=14)
-        tk.Label(hdr, text="RCP Compare + Report Info  |  Auto Log TS", font=("Arial", 10), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
+        tk.Label(hdr, text="RCP Compare + Report Info  |  Auto Log detection", font=("Arial", 10), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
 
         pane = tk.PanedWindow(page, orient="horizontal", bg=BORDER, sashwidth=4, sashrelief="flat")
         pane.pack(fill="both", expand=True)
@@ -766,11 +768,23 @@ class ReportApp(tk.Tk):
         meta_card = tk.Frame(inner, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         meta_card.pack(fill="x", padx=pad, pady=(10,6))
         mi = tk.Frame(meta_card, bg=BG_CARD, padx=10, pady=8); mi.pack(fill="x")
-        tk.Label(mi, text="Tags (comma-separated)", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w", pady=(0,2))
+        tk.Label(mi, text="Alarm code (alarm which show on Tool)", font=("Arial", 8), bg=BG_CARD, fg=TEXT_MID).pack(anchor="w", pady=(0,2))
         self.tags_entry = tk.Entry(mi, font=("Arial", 9), bg=BG_INPUT, fg=TEXT_DARK, relief="flat",
                                    highlightthickness=1, highlightcolor=ACCENT, highlightbackground=BORDER)
         self.tags_entry.pack(fill="x")
-        self.tags_entry.insert(0, "e.g. Alarm, Process, Hardware")
+        _TAGS_PH = "e.g. Gun Down, Arcing"
+        self.tags_entry.insert(0, _TAGS_PH)
+        self.tags_entry.configure(fg="#AAAAAA")
+        def _tags_focus_in(e):
+            if self.tags_entry.get() == _TAGS_PH:
+                self.tags_entry.delete(0, "end")
+                self.tags_entry.configure(fg=TEXT_DARK)
+        def _tags_focus_out(e):
+            if not self.tags_entry.get().strip():
+                self.tags_entry.insert(0, _TAGS_PH)
+                self.tags_entry.configure(fg="#AAAAAA")
+        self.tags_entry.bind("<FocusIn>", _tags_focus_in)
+        self.tags_entry.bind("<FocusOut>", _tags_focus_out)
 
         self._sec(inner, "Issue Description", pad)
         desc_card = tk.Frame(inner, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
@@ -824,7 +838,7 @@ class ReportApp(tk.Tk):
         panel = tk.Frame(parent, bg=BG_LIGHT)
         shdr = tk.Frame(panel, bg=SH_LOG, height=38)
         shdr.pack(fill="x"); shdr.pack_propagate(False)
-        tk.Label(shdr, text="📋  Auto Log TS", font=("Arial", 11, "bold"), bg=SH_LOG, fg=TEXT_LIGHT).pack(side="left", padx=16, pady=8)
+        tk.Label(shdr, text="📋  Auto Log detection", font=("Arial", 11, "bold"), bg=SH_LOG, fg=TEXT_LIGHT).pack(side="left", padx=16, pady=8)
 
         pick_row = tk.Frame(panel, bg=BG_LIGHT, pady=8)
         pick_row.pack(fill="x", padx=12)
@@ -929,10 +943,10 @@ class ReportApp(tk.Tk):
                 ref_year = datetime.now().year
                 t_start = _parse_rcp_dt(scan_start_str, ref_year) if scan_start_str else None
                 t_end   = _parse_rcp_dt(scan_end_str,   ref_year) if scan_end_str   else None
-                hits, in_range, skipped = scan_log_keywords(raw, ISSUE_KEYWORDS, t_start, t_end)
+                hits, all_lines, in_range, skipped = scan_log_keywords(raw, ISSUE_KEYWORDS, t_start, t_end)
             except Exception as e:
                 self.after(0, lambda: self._log_set_error(str(e))); return
-            self.after(0, lambda: self._log_scan_done(path, raw, hits, t_start, t_end, in_range, skipped))
+            self.after(0, lambda: self._log_scan_done(path, raw, hits, all_lines, t_start, t_end, in_range, skipped))
         threading.Thread(target=_worker, daemon=True).start()
 
     def _log_set_loading(self, filename):
@@ -948,9 +962,10 @@ class ReportApp(tk.Tk):
         self.log_status_var.set(f"❌ Read error: {msg}")
         self.log_status_lbl.configure(fg="#F87171")
 
-    def _log_scan_done(self, path, raw, hits, t_start=None, t_end=None, in_range=0, skipped=0):
+    def _log_scan_done(self, path, raw, hits, all_lines=None, t_start=None, t_end=None, in_range=0, skipped=0):
         self.log_raw_text = raw; self.log_filename = os.path.basename(path)
-        self.log_hits = hits; self.log_t_start = t_start; self.log_t_end = t_end
+        self.log_hits = hits; self.log_all_lines = all_lines or []
+        self.log_t_start = t_start; self.log_t_end = t_end
         self.log_in_range = in_range; self.log_skipped = skipped
         self._render_log_hits()
 
@@ -960,6 +975,7 @@ class ReportApp(tk.Tk):
         for w in self.log_hit_inner.winfo_children(): w.destroy()
         total = self.log_raw_text.count("\n")+1
         n = len(self.log_hits)
+        display_lines = self.log_all_lines if self.log_all_lines else self.log_hits
         t_start = self.log_t_start; t_end = self.log_t_end; in_rng = self.log_in_range
         if n == 0:
             if t_start and t_end:
@@ -969,20 +985,23 @@ class ReportApp(tk.Tk):
                 self.log_status_var.set(f"{total:,} lines — No issue keywords found ✓")
             self.log_status_lbl.configure(fg=DOT_GREEN)
             self.hit_count_lbl.configure(text="")
-            tk.Label(self.log_hit_inner, text="✓  No issue keywords detected",
-                     font=("Arial", 10), bg=LOG_BG, fg=DOT_GREEN, pady=30).pack()
-            return
-        if t_start and t_end:
-            rs = f"{t_start.strftime('%m/%d %H:%M:%S')} ~ {t_end.strftime('%m/%d %H:%M:%S')}"
-            self.log_status_var.set(f"Range {rs}  {in_rng:,} lines  {n} hits found")
+            if not display_lines:
+                tk.Label(self.log_hit_inner, text="✓  No issue keywords detected",
+                         font=("Arial", 10), bg=LOG_BG, fg=DOT_GREEN, pady=30).pack()
+                return
         else:
-            self.log_status_var.set(f"{total:,} lines — {n} hits found")
-        self.log_status_lbl.configure(fg=WARNING)
-        self.hit_count_lbl.configure(text=f"⚠ {n} hits")
-        self._log_progress_lbl = tk.Label(self.log_hit_inner, text=f"Loading… 0 / {n}",
+            if t_start and t_end:
+                rs = f"{t_start.strftime('%m/%d %H:%M:%S')} ~ {t_end.strftime('%m/%d %H:%M:%S')}"
+                self.log_status_var.set(f"Range {rs}  {in_rng:,} lines  {n} keyword hits")
+            else:
+                self.log_status_var.set(f"{total:,} lines — {n} keyword hits")
+            self.log_status_lbl.configure(fg=WARNING)
+            self.hit_count_lbl.configure(text=f"⚠ {n} hits")
+        nd = len(display_lines)
+        self._log_progress_lbl = tk.Label(self.log_hit_inner, text=f"Loading… 0 / {nd}",
                                            font=("Arial", 8), bg=LOG_BG, fg="#64748B")
         self._log_progress_lbl.pack(pady=(6,0))
-        self._render_batch(list(self.log_hits), 0, n)
+        self._render_batch(display_lines, 0, nd)
 
     def _render_batch(self, hits, offset, total):
         batch = hits[offset:offset+self._BATCH]
@@ -990,17 +1009,24 @@ class ReportApp(tk.Tk):
             try: self._log_progress_lbl.destroy()
             except: pass
         for lineno, line, kws in batch:
-            row = tk.Frame(self.log_hit_inner, bg="#0F1E35",
-                           highlightbackground="#1B2F4A", highlightthickness=1)
+            is_hit = bool(kws)
+            row_bg = "#3A2E00" if is_hit else "#0F1A2E"
+            row_border = "#7A6200" if is_hit else "#1B2F4A"
+            row = tk.Frame(self.log_hit_inner, bg=row_bg,
+                           highlightbackground=row_border, highlightthickness=1)
             row.pack(fill="x", pady=1, padx=4)
+            lno_bg = "#5A4800" if is_hit else "#1B2B4B"
+            lno_fg = "#FFD600" if is_hit else "#8A9AB0"
             tk.Label(row, text=f"L{lineno}", font=("Courier",7,"bold"),
-                     bg="#1B2B4B", fg="#8A9AB0", padx=6, pady=4).pack(side="left")
-            kw_f = tk.Frame(row, bg="#1E2B3C"); kw_f.pack(side="right", padx=5, pady=3)
-            for kw in kws:
-                tk.Label(kw_f, text=kw, font=("Arial",7,"bold"),
-                         bg=KW_TAG_BG, fg=TEXT_LIGHT, padx=4, pady=1).pack(side="left", padx=(0,2))
+                     bg=lno_bg, fg=lno_fg, padx=6, pady=4).pack(side="left")
+            if is_hit:
+                kw_f = tk.Frame(row, bg=row_bg); kw_f.pack(side="right", padx=5, pady=3)
+                for kw in kws:
+                    tk.Label(kw_f, text=kw, font=("Arial",7,"bold"),
+                             bg=KW_TAG_BG, fg=TEXT_LIGHT, padx=4, pady=1).pack(side="left", padx=(0,2))
+            line_fg = "#FFD600" if is_hit else LOG_FG
             tk.Label(row, text=line.strip()[:130], font=("Courier",8),
-                     bg="#1E2B3C", fg=LOG_KW_FG, anchor="w", padx=8, pady=4,
+                     bg=row_bg, fg=line_fg, anchor="w", padx=8, pady=4,
                      wraplength=360).pack(side="left", fill="x", expand=True)
         next_offset = offset + self._BATCH
         if next_offset < total:
@@ -1016,7 +1042,7 @@ class ReportApp(tk.Tk):
                       command=self._show_full_log).pack(pady=8)
 
     def _clear_log(self):
-        self.log_raw_text=""; self.log_hits=[]; self.log_filename=""
+        self.log_raw_text=""; self.log_hits=[]; self.log_all_lines=[]; self.log_filename=""
         self.log_file_var.set("No log file selected"); self.log_status_var.set("")
         self.hit_count_lbl.configure(text="")
         for w in self.log_hit_inner.winfo_children(): w.destroy()
@@ -1110,7 +1136,7 @@ class ReportApp(tk.Tk):
         if not desc or desc.startswith("e.g."):
             messagebox.showwarning("Notice","Please enter an issue description."); return
         tags_raw = self.tags_entry.get().strip()
-        tags = [t.strip() for t in tags_raw.split(",") if t.strip() and not t.strip().startswith("e.g")] if tags_raw else []
+        tags = [t.strip() for t in tags_raw.split(",") if t.strip() and not t.strip().startswith("e.g")] if tags_raw and not tags_raw.startswith("e.g") else []
         hit_kws = list(dict.fromkeys(kw for _,_,kws in self.log_hits for kw in kws))
         record = {
             "id":    len(self.issue_records)+1,

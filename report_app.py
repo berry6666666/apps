@@ -58,6 +58,17 @@ RCP_FIELDS = [
     "SCAN END TIME", "LOT ID", "RCP NAME",
 ]
 
+def _field_label(field):
+    """Display label for an RCP field: keep 'RCP' and 'ID' as-is,
+    title-case every other word (first letter upper, rest lower)."""
+    out = []
+    for w in field.split():
+        if w.upper() in ("RCP", "ID"):
+            out.append(w.upper())
+        else:
+            out.append(w.capitalize())
+    return " ".join(out)
+
 _DEFAULT_KEYWORDS = [
     "ERROR","error","FAIL","FAILED","ALARM","WARNING",
     "ABORT","TIMEOUT","CRITICAL","EXCEPTION","FAULT",
@@ -304,21 +315,11 @@ class ReportApp(tk.Tk):
         self._sort_asc    = False
 
         self._build_ui()
-        self._bind_shortcuts()
         self.current_section = None
         self._nav_select("main")
         if self.issue_records:
             self._update_badge()
             self._refresh_issue_list()
-
-    # ── 鍵盤快捷鍵 ────────────────────────────────────────────
-    def _bind_shortcuts(self):
-        self.bind("<Control-r>", lambda e: self._run_compare())
-        self.bind("<Control-l>", lambda e: self._pick_log_file())
-        self.bind("<Control-Return>", lambda e: self._submit_report())
-        self.bind("<Control-e>", lambda e: self._export_selected())
-        self.bind("<F1>", lambda e: self._nav_select("main"))
-        self.bind("<F2>", lambda e: self._nav_select("tool_issue"))
 
     # ── Sidebar ────────────────────────────────────────────────
     def _build_ui(self):
@@ -336,15 +337,10 @@ class ReportApp(tk.Tk):
         self.nav_buttons = {}
         self.issue_count_lbl = None
         for key, icon, label, shortcut in [
-            ("main",       "⊞",  "File Report", "F1"),
-            ("tool_issue", "☰",  "Tool Issue",  "F2"),
+            ("main",       "⊞",  "File Report", ""),
+            ("tool_issue", "☰",  "Tool Issue",  ""),
         ]:
             self.nav_buttons[key] = self._make_nav_btn(key, icon, label, shortcut)
-
-        tk.Frame(self.sidebar, bg="#374D65", height=1).pack(fill="x", padx=16, pady=8)
-        tk.Label(self.sidebar, text="Shortcuts", font=("Arial", 8, "bold"), bg=BG_PANEL, fg=TEXT_MUTED).pack(anchor="w", padx=16)
-        for txt in ["F1  File Report", "F2  Tool Issue", "Ctrl+R  Run Compare", "Ctrl+L  Pick Log", "Ctrl+↵  Submit", "Ctrl+E  Export"]:
-            tk.Label(self.sidebar, text=txt, font=("Arial", 7), bg=BG_PANEL, fg="#3D5270").pack(anchor="w", padx=20, pady=1)
 
         tk.Label(self.sidebar, text="v4.0.0", font=("Arial", 8), bg=BG_PANEL, fg="#3D5270").pack(side="bottom", pady=10)
 
@@ -577,12 +573,12 @@ class ReportApp(tk.Tk):
 
         btn_row = tk.Frame(inner, bg=BG_LIGHT)
         btn_row.pack(fill="x", padx=pad, pady=(2,6))
-        tk.Button(btn_row, text="▶ Run Compare  Ctrl+R",
+        tk.Button(btn_row, text="▶ Run Compare",
                   font=("Arial", 9, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                   relief="flat", padx=16, pady=6, cursor="hand2",
                   activebackground=ACCENT, activeforeground=TEXT_LIGHT,
                   command=self._run_compare).pack(side="left")
-        tk.Button(btn_row, text="並排 Diff ↗",
+        tk.Button(btn_row, text="Side-by-Side Diff ↗",
                   font=("Arial", 8), bg="#354A61", fg=TEXT_LIGHT,
                   relief="flat", padx=10, pady=6, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
@@ -598,16 +594,34 @@ class ReportApp(tk.Tk):
 
         diff_hdr = tk.Frame(inner, bg=BG_DARK)
         diff_hdr.pack(fill="x", padx=pad)
-        tk.Label(diff_hdr, text="", bg=BG_DARK, width=2, padx=4, pady=5).pack(side="left")
-        for txt, w in [("Field",14),("Golden",18),("Issue",18)]:
-            tk.Label(diff_hdr, text=txt, font=("Arial", 8, "bold"),
-                     bg=BG_DARK, fg=TEXT_LIGHT, anchor="w", width=w, padx=6, pady=5).pack(side="left")
+        self._apply_diff_cols(diff_hdr)
+        tk.Label(diff_hdr, text="", bg=BG_DARK, width=2, padx=4, pady=5).grid(row=0, column=0)
+        tk.Frame(diff_hdr, bg=BORDER, width=1).grid(row=0, column=1, sticky="ns")
+        tk.Label(diff_hdr, text="Item", font=("Arial", 8, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
+                 anchor="w", width=14, padx=6, pady=5).grid(row=0, column=2, sticky="ew")
+        tk.Frame(diff_hdr, bg=BORDER, width=1).grid(row=0, column=3, sticky="ns")
+        tk.Label(diff_hdr, text="Golden RCP", font=("Arial", 8, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
+                 anchor="w", padx=6, pady=5).grid(row=0, column=4, sticky="ew")
+        tk.Frame(diff_hdr, bg=BORDER, width=1).grid(row=0, column=5, sticky="ns")
+        tk.Label(diff_hdr, text="Issue RCP", font=("Arial", 8, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
+                 anchor="w", padx=6, pady=5).grid(row=0, column=6, sticky="ew")
 
         self.diff_frame = tk.Frame(inner, bg=BG_LIGHT)
         self.diff_frame.pack(fill="x", padx=pad, pady=(0,10))
         tk.Label(self.diff_frame, text="Load two RCP files then click Run Compare",
                  font=("Arial", 9), bg=BG_LIGHT, fg=TEXT_MUTED, pady=18).pack()
         return panel
+
+    def _apply_diff_cols(self, frame):
+        """Shared column layout for diff header/rows: dot, sep, Item (fixed),
+        sep, Golden RCP, sep, Issue RCP. The two RCP columns share equal weight."""
+        frame.columnconfigure(0, minsize=24, weight=0)   # status dot
+        frame.columnconfigure(1, minsize=1,  weight=0)   # sep
+        frame.columnconfigure(2, minsize=120, weight=0)  # Item (fixed)
+        frame.columnconfigure(3, minsize=1,  weight=0)   # sep
+        frame.columnconfigure(4, weight=1, uniform="rcp")  # Golden RCP
+        frame.columnconfigure(5, minsize=1,  weight=0)   # sep
+        frame.columnconfigure(6, weight=1, uniform="rcp")  # Issue RCP
 
     def _build_rcp_card(self, parent, title, subtitle, color, col):
         card = tk.Frame(parent, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
@@ -628,9 +642,9 @@ class ReportApp(tk.Tk):
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=lambda c=None, t=tag: self._pick_rcp_file(card, t)).pack(side="left", padx=(3,0))
         preview = scrolledtext.ScrolledText(
-            inner, height=5, font=("Courier", 7), bg=BG_INPUT, fg=TEXT_DARK,
+            inner, height=12, font=("Courier", 7), bg=BG_INPUT, fg=TEXT_DARK,
             relief="flat", wrap="word", state="disabled", highlightthickness=0, borderwidth=0)
-        preview.pack(fill="x", pady=(5,0))
+        preview.pack(fill="both", expand=True, pady=(5,0))
         card._file_var = file_var; card._data = {}; card._preview = preview; card._raw = ""
         return card
 
@@ -668,12 +682,17 @@ class ReportApp(tk.Tk):
             elif status in ("only_issue","only_golden"): dot_c,g_fg,i_fg = DOT_YELLOW,TEXT_MUTED,TEXT_MUTED
             else: dot_c,g_fg,i_fg = TEXT_MUTED,TEXT_MUTED,TEXT_MUTED
             rf = tk.Frame(self.diff_frame, bg=bg); rf.pack(fill="x")
-            tk.Label(rf, text="●", font=("Arial",10), bg=bg, fg=dot_c, padx=4, pady=6).pack(side="left")
-            tk.Label(rf, text=key, font=("Arial",8,"bold"), bg=bg, fg=TEXT_DARK, anchor="w", width=14, padx=3, pady=6).pack(side="left")
-            tk.Frame(rf, bg=BORDER, width=1).pack(side="left", fill="y", padx=1)
-            tk.Label(rf, text=g_val or "—", font=("Courier",8), bg=bg, fg=g_fg, anchor="w", width=18, padx=5, pady=6, wraplength=130).pack(side="left")
-            tk.Frame(rf, bg=BORDER, width=1).pack(side="left", fill="y", padx=1)
-            tk.Label(rf, text=i_val or "—", font=("Courier",8), bg=bg, fg=i_fg, anchor="w", width=18, padx=5, pady=6, wraplength=130).pack(side="left")
+            self._apply_diff_cols(rf)
+            tk.Label(rf, text="●", font=("Arial",10), bg=bg, fg=dot_c, padx=4, pady=6).grid(row=0, column=0)
+            tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=1, sticky="ns")
+            tk.Label(rf, text=_field_label(key), font=("Arial",8,"bold"), bg=bg, fg=TEXT_DARK,
+                     anchor="w", width=14, padx=6, pady=6).grid(row=0, column=2, sticky="ew")
+            tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=3, sticky="ns")
+            tk.Label(rf, text=g_val or "—", font=("Courier",8), bg=bg, fg=g_fg, anchor="w",
+                     padx=6, pady=6, justify="left").grid(row=0, column=4, sticky="ew")
+            tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=5, sticky="ns")
+            tk.Label(rf, text=i_val or "—", font=("Courier",8), bg=bg, fg=i_fg, anchor="w",
+                     padx=6, pady=6, justify="left").grid(row=0, column=6, sticky="ew")
             tk.Frame(self.diff_frame, bg=BORDER, height=1).pack(fill="x")
 
     # ── 並排 Diff 視窗 ────────────────────────────────────────
@@ -784,7 +803,7 @@ class ReportApp(tk.Tk):
 
         sub_row = tk.Frame(inner, bg=BG_LIGHT)
         sub_row.pack(fill="x", padx=pad, pady=(6,14))
-        tk.Button(sub_row, text="📋  Submit Report  Ctrl+↵", font=("Arial", 10, "bold"),
+        tk.Button(sub_row, text="📋  Submit Report", font=("Arial", 10, "bold"),
                   bg=ACCENT, fg=TEXT_LIGHT, relief="flat", padx=24, pady=9, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._submit_report).pack(side="left")
@@ -812,7 +831,7 @@ class ReportApp(tk.Tk):
         self.log_file_var = tk.StringVar(value="No log file selected")
         tk.Label(pick_row, textvariable=self.log_file_var, font=("Arial", 8),
                  bg=BG_INPUT, fg=TEXT_MID, anchor="w", padx=8, pady=4).pack(side="left", fill="x", expand=True)
-        tk.Button(pick_row, text="Select Log  Ctrl+L", font=("Arial", 9, "bold"),
+        tk.Button(pick_row, text="Select Log", font=("Arial", 9, "bold"),
                   bg=SH_LOG, fg=TEXT_LIGHT, relief="flat", padx=12, pady=4, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._pick_log_file).pack(side="left", padx=(6,0))
@@ -1143,7 +1162,7 @@ class ReportApp(tk.Tk):
         tk.Label(search_f, text="Search desc/Tool ID/LOT ID", font=("Arial",7), bg="#EEF1F6", fg=TEXT_MUTED).pack(side="left", padx=4)
 
         # 按鈕群
-        tk.Button(toolbar, text="Ctrl+E  Export Selected", font=("Arial",8,"bold"),
+        tk.Button(toolbar, text="Export Selected", font=("Arial",8,"bold"),
                   bg=INFO, fg=TEXT_LIGHT, relief="flat", padx=10, pady=5, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._export_selected).pack(side="right", padx=4)

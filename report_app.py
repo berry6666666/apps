@@ -895,10 +895,23 @@ class ReportApp(tk.Tk):
         self.hit_count_lbl = tk.Label(hit_hdr, text="", font=("Arial", 8, "bold"), bg=BG_DARK, fg=WARNING)
         self.hit_count_lbl.pack(side="right", padx=8)
 
-        _, self.log_hit_inner, _ = _make_scrollable(panel, LOG_BG)
-        tk.Label(self.log_hit_inner, text="Select a log file to auto-scan keywords",
-                 font=("Arial", 9), bg=LOG_BG, fg="#475569", pady=30).pack()
-        return panel
+        log_frame = tk.Frame(panel, bg=LOG_BG)
+        log_frame.pack(fill="both", expand=True, padx=12, pady=(0,8))
+        log_vsb = ttk.Scrollbar(log_frame, orient="vertical")
+        log_vsb.pack(side="right", fill="y")
+        self.log_text = tk.Text(log_frame, bg=LOG_BG, fg=LOG_FG,
+                                font=("Courier", 8), wrap="none",
+                                relief="flat", state="disabled",
+                                yscrollcommand=log_vsb.set,
+                                highlightthickness=0,
+                                selectbackground="#2A4270")
+        log_vsb.configure(command=self.log_text.yview)
+        self.log_text.pack(side="left", fill="both", expand=True)
+        self.log_text.tag_configure("hit",    background="#3A2E00", foreground="#FFD600")
+        self.log_text.tag_configure("normal", background=LOG_BG,    foreground=LOG_FG)
+        self.log_text.tag_configure("lineno", foreground="#556070")
+        self.log_text.tag_configure("kwtag",  foreground="#E8C468", font=("Arial", 7, "bold"))
+        self._log_text_set("Select a log file to auto-scan keywords")
 
     def _refresh_kw_pills(self):
         for w in self.kw_pills_frame.winfo_children(): w.destroy()
@@ -968,14 +981,20 @@ class ReportApp(tk.Tk):
             self.after(0, lambda: self._log_scan_done(path, raw, hits, all_lines, t_start, t_end, in_range, skipped))
         threading.Thread(target=_worker, daemon=True).start()
 
+    def _log_text_set(self, msg):
+        """Replace log Text content with a single status message."""
+        t = self.log_text
+        t.configure(state="normal")
+        t.delete("1.0", "end")
+        t.insert("end", f"\n  {msg}\n")
+        t.configure(state="disabled")
+
     def _log_set_loading(self, filename):
         self.log_file_var.set(filename)
         self.log_status_var.set("⏳ Scanning, please wait…")
         self.log_status_lbl.configure(fg=TEXT_MUTED)
         self.hit_count_lbl.configure(text="")
-        for w in self.log_hit_inner.winfo_children(): w.destroy()
-        tk.Label(self.log_hit_inner, text="⏳  Reading and scanning log…",
-                 font=("Arial", 9), bg=LOG_BG, fg="#64748B", pady=30).pack()
+        self._log_text_set("⏳  Reading and scanning log…")
 
     def _log_set_error(self, msg):
         self.log_status_var.set(f"❌ Read error: {msg}")
@@ -988,14 +1007,14 @@ class ReportApp(tk.Tk):
         self.log_in_range = in_range; self.log_skipped = skipped
         self._render_log_hits()
 
-    _BATCH = 25
+    _BATCH = 500  # lines per chunk — Text widget handles large batches fine
 
     def _render_log_hits(self):
-        for w in self.log_hit_inner.winfo_children(): w.destroy()
-        total = self.log_raw_text.count("\n")+1
+        total = self.log_raw_text.count("\n") + 1
         n = len(self.log_hits)
         display_lines = self.log_all_lines if self.log_all_lines else self.log_hits
         t_start = self.log_t_start; t_end = self.log_t_end; in_rng = self.log_in_range
+
         if n == 0:
             if t_start and t_end:
                 rs = f"{t_start.strftime('%m/%d %H:%M:%S')} ~ {t_end.strftime('%m/%d %H:%M:%S')}"
@@ -1005,8 +1024,7 @@ class ReportApp(tk.Tk):
             self.log_status_lbl.configure(fg=DOT_GREEN)
             self.hit_count_lbl.configure(text="")
             if not display_lines:
-                tk.Label(self.log_hit_inner, text="✓  No issue keywords detected",
-                         font=("Arial", 10), bg=LOG_BG, fg=DOT_GREEN, pady=30).pack()
+                self._log_text_set("✓  No issue keywords detected")
                 return
         else:
             if t_start and t_end:
@@ -1016,57 +1034,33 @@ class ReportApp(tk.Tk):
                 self.log_status_var.set(f"{total:,} lines — {n} keyword hits")
             self.log_status_lbl.configure(fg=WARNING)
             self.hit_count_lbl.configure(text=f"⚠ {n} hits")
-        nd = len(display_lines)
-        self._log_progress_lbl = tk.Label(self.log_hit_inner, text=f"Loading… 0 / {nd}",
-                                           font=("Arial", 8), bg=LOG_BG, fg="#64748B")
-        self._log_progress_lbl.pack(pady=(6,0))
-        self._render_batch(display_lines, 0, nd)
 
-    def _render_batch(self, hits, offset, total):
-        batch = hits[offset:offset+self._BATCH]
-        if offset == 0 and hasattr(self,"_log_progress_lbl"):
-            try: self._log_progress_lbl.destroy()
-            except: pass
+        t = self.log_text
+        t.configure(state="normal")
+        t.delete("1.0", "end")
+        t.configure(state="disabled")
+        self._render_batch(display_lines, 0)
+
+    def _render_batch(self, lines, offset):
+        batch = lines[offset:offset + self._BATCH]
+        t = self.log_text
+        t.configure(state="normal")
         for lineno, line, kws in batch:
             is_hit = bool(kws)
-            row_bg = "#3A2E00" if is_hit else "#0F1A2E"
-            row_border = "#7A6200" if is_hit else "#1B2F4A"
-            row = tk.Frame(self.log_hit_inner, bg=row_bg,
-                           highlightbackground=row_border, highlightthickness=1)
-            row.pack(fill="x", pady=1, padx=4)
-            lno_bg = "#5A4800" if is_hit else "#1B2B4B"
-            lno_fg = "#FFD600" if is_hit else "#8A9AB0"
-            tk.Label(row, text=f"L{lineno}", font=("Courier",7,"bold"),
-                     bg=lno_bg, fg=lno_fg, padx=6, pady=4).pack(side="left")
-            if is_hit:
-                kw_f = tk.Frame(row, bg=row_bg); kw_f.pack(side="right", padx=5, pady=3)
-                for kw in kws:
-                    tk.Label(kw_f, text=kw, font=("Arial",7,"bold"),
-                             bg=KW_TAG_BG, fg=TEXT_LIGHT, padx=4, pady=1).pack(side="left", padx=(0,2))
-            line_fg = "#FFD600" if is_hit else LOG_FG
-            tk.Label(row, text=line.strip()[:130], font=("Courier",8),
-                     bg=row_bg, fg=line_fg, anchor="w", padx=8, pady=4,
-                     wraplength=360).pack(side="left", fill="x", expand=True)
+            tag = "hit" if is_hit else "normal"
+            kw_str = f"  [{', '.join(kws)}]" if is_hit else ""
+            t.insert("end", f"L{lineno:<6}", ("lineno",))
+            t.insert("end", line.rstrip()[:200] + kw_str + "\n", (tag,))
+        t.configure(state="disabled")
         next_offset = offset + self._BATCH
-        if next_offset < total:
-            prog = tk.Label(self.log_hit_inner, text=f"Loading… {next_offset} / {total}",
-                            font=("Arial",7), bg=LOG_BG, fg="#475569")
-            prog.pack()
-            self.after(0, lambda p=prog: (p.destroy(), self._render_batch(hits, next_offset, total)))
-        else:
-            tk.Button(self.log_hit_inner, text="📄  View Full Log",
-                      font=("Arial",8), bg="#1E2B3C", fg="#94A3B8", relief="flat",
-                      padx=10, pady=5, cursor="hand2",
-                      activebackground="#2A3D55", activeforeground=TEXT_LIGHT,
-                      command=self._show_full_log).pack(pady=8)
+        if next_offset < len(lines):
+            self.after(10, lambda: self._render_batch(lines, next_offset))
 
     def _clear_log(self):
         self.log_raw_text=""; self.log_hits=[]; self.log_all_lines=[]; self.log_filename=""
         self.log_file_var.set("No log file selected"); self.log_status_var.set("")
         self.hit_count_lbl.configure(text="")
-        for w in self.log_hit_inner.winfo_children(): w.destroy()
-        tk.Label(self.log_hit_inner, text="Select a log file to auto-scan keywords",
-                 font=("Arial",9), bg=LOG_BG, fg="#475569", pady=30).pack()
+        self._log_text_set("Select a log file to auto-scan keywords")
 
     def _show_full_log(self):
         if not self.log_raw_text: return

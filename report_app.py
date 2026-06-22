@@ -194,9 +194,24 @@ def _parse_log_ts(line, ref_year):
     except: return None
 
 def _parse_rcp_dt(s, ref_year):
+    s = s.strip()
+    # Formats with explicit year
     for fmt in ("%Y/%m/%d %H:%M:%S","%Y-%m-%d %H:%M:%S","%Y/%m/%d %H:%M","%Y-%m-%d %H:%M"):
-        try: return datetime.strptime(s.strip(), fmt)
+        try: return datetime.strptime(s, fmt)
         except: continue
+    # Formats without year (MM/DD HH:MM:SS[.ms]) — assume ref_year
+    m = re.match(r'^(\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?$', s)
+    if m:
+        try:
+            mo, d, h, mi, sec = (int(x) for x in m.groups()[:5])
+            return datetime(ref_year, mo, d, h, mi, sec)
+        except: pass
+    m = re.match(r'^(\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})$', s)
+    if m:
+        try:
+            mo, d, h, mi = (int(x) for x in m.groups())
+            return datetime(ref_year, mo, d, h, mi)
+        except: pass
     return None
 
 def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):

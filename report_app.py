@@ -179,7 +179,7 @@ def diff_dicts(golden, issue):
     return rows
 
 # ─── Log Scanner ─────────────────────────────────────────────
-_LOG_TS_RE = re.compile(r'^([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{2}:\d{2}:\d{2})')
+_LOG_TS_RE = re.compile(r'^([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{2}:\d{2}:\d{2})(?:\.\d+)?')
 _MONTH_MAP = {"Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
               "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12}
 
@@ -187,7 +187,7 @@ def _parse_log_ts(line, ref_year):
     m = _LOG_TS_RE.match(line)
     if not m: return None
     try:
-        mon = _MONTH_MAP.get(m.group(1), 0)
+        mon = _MONTH_MAP.get(m.group(1).capitalize(), 0)
         if not mon: return None
         h, mi, s = (int(x) for x in m.group(3).split(":"))
         return datetime(ref_year, mon, int(m.group(2)), h, mi, s)
@@ -203,12 +203,16 @@ def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):
     use_range = scan_start and scan_end
     ref_year  = scan_start.year if use_range else datetime.now().year
     hits, all_lines, in_range, skipped = [], [], 0, 0
+    last_ts = None  # carry timestamp for continuation lines
     for lineno, line in enumerate(text.splitlines(), 1):
         ts = _parse_log_ts(line, ref_year)
+        if ts is not None:
+            last_ts = ts
+        effective_ts = ts if ts is not None else last_ts
         if use_range:
-            if ts is None: skipped += 1; continue
-            if not (scan_start <= ts <= scan_end): continue
-            in_range += 1
+            if effective_ts is None: skipped += 1; continue
+            if not (scan_start <= effective_ts <= scan_end): continue
+            if ts is not None: in_range += 1  # count only primary lines
         matched = [kw for kw in keywords if kw in line]
         all_lines.append((lineno, line, matched))
         if matched: hits.append((lineno, line, matched))

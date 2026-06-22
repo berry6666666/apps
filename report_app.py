@@ -1219,7 +1219,6 @@ class ReportApp(tk.Tk):
         # (col_id, heading, width, minwidth, anchor, stretch)
         self._tree_cols = [
             ("del",   "",                34,  34,  "center", False),
-            ("id",    "#",               44,  40,  "center", False),
             ("time",  "Time",            108, 80,  "w",      False),
             ("tool",  "Tool id",         78,  60,  "w",      False),
             ("rcp",   "RCP name",        120, 80,  "w",      True),
@@ -1227,7 +1226,8 @@ class ReportApp(tk.Tk):
             ("mtime", "RCP modify time", 112, 90,  "w",      False),
             ("stime", "RCP scan time",   112, 90,  "w",      False),
             ("etime", "Scan end time",   112, 90,  "w",      False),
-            ("log",   "Log ts",          100, 70,  "w",      False),
+            ("alarm", "Alarm code",      110, 80,  "w",      False),
+            ("log",   "Log detection",   100, 70,  "w",      False),
             ("desc",  "Description",     180, 100, "w",      True),
             ("exp",   "Export",          64,  56,  "center", False),
         ]
@@ -1280,9 +1280,9 @@ class ReportApp(tk.Tk):
         return page
 
     def _sort_tree(self, col):
-        key_map = {"id":"id","time":"time","tool":"Tool ID","rcp":"RCP NAME","lot":"LOT ID",
+        key_map = {"time":"time","tool":"Tool ID","rcp":"RCP NAME","lot":"LOT ID",
                    "mtime":"RCP MODIFY TIME","stime":"RCP SCAN TIME","etime":"SCAN END TIME",
-                   "log":"log_keywords","desc":"desc"}
+                   "alarm":"tags","log":"log_keywords","desc":"desc"}
         k = key_map.get(col, "id")
         if self._sort_col == k: self._sort_asc = not self._sort_asc
         else: self._sort_col, self._sort_asc = k, True
@@ -1360,14 +1360,13 @@ class ReportApp(tk.Tk):
                 log_txt = "—"
 
             n_img = len(rec.get("images", []))
-            desc_short = rec.get("desc", "")[:48] + ("…" if len(rec.get("desc","")) > 48 else "")
+            desc_short = rec.get("desc", "")[:52] + ("…" if len(rec.get("desc","")) > 52 else "")
+            desc_txt = desc_short + (f"  📷{n_img}" if n_img else "")
             tags = rec.get("tags", [])
-            desc_txt = (("[" + ", ".join(tags[:3]) + "]  ") if tags else "") + desc_short
-            if n_img: desc_txt += f"  📷{n_img}"
+            alarm_txt = ", ".join(tags) if tags else "—"
 
             values = (
                 "🗑",
-                f"#{rec['id']}",
                 rec.get("time", "—"),
                 rec.get("Tool ID", "—"),
                 rec.get("RCP NAME", "—"),
@@ -1375,6 +1374,7 @@ class ReportApp(tk.Tk):
                 rec.get("RCP MODIFY TIME", "—"),
                 rec.get("RCP SCAN TIME", "—"),
                 rec.get("SCAN END TIME", "—"),
+                alarm_txt,
                 log_txt,
                 desc_txt or "—",
                 "⬇ HTML",

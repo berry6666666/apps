@@ -912,6 +912,7 @@ class ReportApp(tk.Tk):
         self.log_text.tag_configure("lineno", foreground="#556070")
         self.log_text.tag_configure("kwtag",  foreground="#E8C468", font=("Arial", 7, "bold"))
         self._log_text_set("Select a log file to auto-scan keywords")
+        return panel
 
     def _refresh_kw_pills(self):
         for w in self.kw_pills_frame.winfo_children(): w.destroy()

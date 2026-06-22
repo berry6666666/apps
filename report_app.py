@@ -1238,10 +1238,16 @@ class ReportApp(tk.Tk):
         table_outer = tk.Frame(page, bg=BG_LIGHT)
         table_outer.pack(fill="both", expand=True)
 
+        # Scrollbar on the far right of table_outer
         vsb = ttk.Scrollbar(table_outer, orient="vertical")
         vsb.pack(side="right", fill="y")
 
-        th = tk.Frame(table_outer, bg=BG_DARK)
+        # left_col holds BOTH the header and the canvas so they share
+        # exactly the same pixel width (scrollbar is already claimed)
+        left_col = tk.Frame(table_outer, bg=BG_LIGHT)
+        left_col.pack(side="left", fill="both", expand=True)
+
+        th = tk.Frame(left_col, bg=BG_DARK)
         th.pack(side="top", fill="x")
         self._apply_table_cols(th)
         tk.Label(th, text="", bg=BG_DARK, width=4).grid(row=0, column=0)
@@ -1258,7 +1264,7 @@ class ReportApp(tk.Tk):
         tk.Frame(th, bg="#374D65", width=1).grid(row=0, column=4+len(self._tbl_cols)*2-1, sticky="ns")
         tk.Label(th, text="", bg=BG_DARK, width=7).grid(row=0, column=4+len(self._tbl_cols)*2)
 
-        canvas = tk.Canvas(table_outer, bg=BG_LIGHT, highlightthickness=0, yscrollcommand=vsb.set)
+        canvas = tk.Canvas(left_col, bg=BG_LIGHT, highlightthickness=0, yscrollcommand=vsb.set)
         vsb.configure(command=canvas.yview)
         canvas.pack(side="left", fill="both", expand=True)
         self.issue_list_inner = tk.Frame(canvas, bg=BG_LIGHT)

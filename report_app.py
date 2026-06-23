@@ -55,7 +55,7 @@ SH_LOG     = "#1A3A2A"
 
 RCP_FIELDS = [
     "Tool ID", "RCP MODIFY TIME", "RCP SCAN TIME",
-    "SCAN END TIME", "LOT ID", "RCP NAME",
+    "SCAN END TIME", "LOT ID", "RCP NAME", "RAW COUNT",
 ]
 
 def _field_label(field):
@@ -164,6 +164,8 @@ def parse_rcp_text(text):
     if m:
         data["RCP NAME"]        = m.group(1).strip()
         data["RCP MODIFY TIME"] = _parse_date_time(m.group(2), m.group(3))
+    m = re.search(r'List\s+DefectList\s*\{.*?Data\s+(\d+)', text, re.IGNORECASE | re.DOTALL)
+    if m: data["RAW COUNT"] = m.group(1).strip()
     return data
 
 def diff_dicts(golden, issue):

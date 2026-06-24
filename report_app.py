@@ -897,6 +897,38 @@ class ReportApp(tk.Tk):
         self.hit_count_lbl = tk.Label(hit_hdr, text="", font=("Arial", 8, "bold"), bg=BG_DARK, fg=WARNING)
         self.hit_count_lbl.pack(side="right", padx=8)
 
+        # ── Ctrl+F search bar (hidden by default) ─────────────
+        self._search_bar_visible = False
+        self._search_var = tk.StringVar()
+        self._search_matches = []
+        self._search_idx = -1
+
+        self.search_bar = tk.Frame(panel, bg="#1E2D3E", pady=4)
+        sf = tk.Frame(self.search_bar, bg="#1E2D3E"); sf.pack(fill="x", padx=8)
+        tk.Label(sf, text="🔍", font=("Arial", 9), bg="#1E2D3E", fg="#94A3B8").pack(side="left")
+        self.search_entry = tk.Entry(sf, textvariable=self._search_var,
+                                     font=("Arial", 9), bg="#0F1A2E", fg="#E2E8F0",
+                                     insertbackground="#E2E8F0", relief="flat",
+                                     highlightthickness=1, highlightcolor=ACCENT,
+                                     highlightbackground="#334155", width=20)
+        self.search_entry.pack(side="left", padx=6, ipady=3)
+        self._search_match_lbl = tk.Label(sf, text="", font=("Arial", 8),
+                                           bg="#1E2D3E", fg="#94A3B8", width=10, anchor="w")
+        self._search_match_lbl.pack(side="left")
+        tk.Button(sf, text="▲", font=("Arial", 8), bg="#2A3D55", fg=TEXT_LIGHT,
+                  relief="flat", padx=6, pady=2, cursor="hand2",
+                  command=lambda: self._search_step(-1)).pack(side="left", padx=(0,2))
+        tk.Button(sf, text="▼", font=("Arial", 8), bg="#2A3D55", fg=TEXT_LIGHT,
+                  relief="flat", padx=6, pady=2, cursor="hand2",
+                  command=lambda: self._search_step(1)).pack(side="left")
+        tk.Button(sf, text="✕", font=("Arial", 8), bg="#1E2D3E", fg="#64748B",
+                  relief="flat", padx=6, pady=2, cursor="hand2",
+                  command=self._hide_search).pack(side="right")
+        self._search_var.trace_add("write", lambda *_: self._search_update())
+        self.search_entry.bind("<Return>",       lambda e: self._search_step(1))
+        self.search_entry.bind("<Shift-Return>", lambda e: self._search_step(-1))
+        self.search_entry.bind("<Escape>",       lambda e: self._hide_search())
+
         log_frame = tk.Frame(panel, bg=LOG_BG)
         log_frame.pack(fill="both", expand=True, padx=12, pady=(0,8))
         log_vsb = ttk.Scrollbar(log_frame, orient="vertical")
@@ -909,12 +941,68 @@ class ReportApp(tk.Tk):
                                 selectbackground="#2A4270")
         log_vsb.configure(command=self.log_text.yview)
         self.log_text.pack(side="left", fill="both", expand=True)
-        self.log_text.tag_configure("hit",    background="#3A2E00", foreground="#FFD600")
-        self.log_text.tag_configure("normal", background=LOG_BG,    foreground=LOG_FG)
-        self.log_text.tag_configure("lineno", foreground="#556070")
-        self.log_text.tag_configure("kwtag",  foreground="#E8C468", font=("Arial", 7, "bold"))
+        self.log_text.tag_configure("hit",          background="#3A2E00", foreground="#FFD600")
+        self.log_text.tag_configure("normal",        background=LOG_BG,    foreground=LOG_FG)
+        self.log_text.tag_configure("lineno",        foreground="#556070")
+        self.log_text.tag_configure("kwtag",         foreground="#E8C468", font=("Arial", 7, "bold"))
+        self.log_text.tag_configure("search_match",  background="#1A5276", foreground="#FFFFFF")
+        self.log_text.tag_configure("search_active", background=ACCENT,    foreground="#000000")
+        # Bind Ctrl+F on panel and log text
+        for w in (panel, self.log_text):
+            w.bind("<Control-f>", lambda e: self._show_search())
         self._log_text_set("Select a log file to auto-scan keywords")
         return panel
+
+    def _show_search(self):
+        if not self._search_bar_visible:
+            self.search_bar.pack(fill="x", padx=12, pady=(0,2),
+                                 before=self.log_text.master)
+            self._search_bar_visible = True
+        self.search_entry.focus_set()
+        self.search_entry.select_range(0, "end")
+
+    def _hide_search(self):
+        self.search_bar.pack_forget()
+        self._search_bar_visible = False
+        self.log_text.tag_remove("search_match",  "1.0", "end")
+        self.log_text.tag_remove("search_active", "1.0", "end")
+        self._search_matches = []; self._search_idx = -1
+        self._search_match_lbl.configure(text="")
+
+    def _search_update(self):
+        t = self.log_text
+        t.tag_remove("search_match",  "1.0", "end")
+        t.tag_remove("search_active", "1.0", "end")
+        self._search_matches = []; self._search_idx = -1
+        q = self._search_var.get()
+        if not q:
+            self._search_match_lbl.configure(text=""); return
+        start = "1.0"
+        while True:
+            pos = t.search(q, start, stopindex="end", nocase=True)
+            if not pos: break
+            end = f"{pos}+{len(q)}c"
+            t.tag_add("search_match", pos, end)
+            self._search_matches.append(pos)
+            start = end
+        n = len(self._search_matches)
+        if n == 0:
+            self._search_match_lbl.configure(text="No match", fg="#F87171"); return
+        self._search_match_lbl.configure(fg="#94A3B8")
+        self._search_step(1)
+
+    def _search_step(self, direction):
+        if not self._search_matches: return
+        n = len(self._search_matches)
+        self._search_idx = (self._search_idx + direction) % n
+        # remove previous active highlight
+        self.log_text.tag_remove("search_active", "1.0", "end")
+        pos = self._search_matches[self._search_idx]
+        q = self._search_var.get()
+        end = f"{pos}+{len(q)}c"
+        self.log_text.tag_add("search_active", pos, end)
+        self.log_text.see(pos)
+        self._search_match_lbl.configure(text=f"{self._search_idx+1} / {n}")
 
     def _refresh_kw_pills(self):
         for w in self.kw_pills_frame.winfo_children(): w.destroy()

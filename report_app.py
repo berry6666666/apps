@@ -924,7 +924,8 @@ class ReportApp(tk.Tk):
         tk.Button(sf, text="✕", font=("Arial", 8), bg="#1E2D3E", fg="#64748B",
                   relief="flat", padx=6, pady=2, cursor="hand2",
                   command=self._hide_search).pack(side="right")
-        self._search_var.trace_add("write", lambda *_: self._search_update())
+        self._search_after_id = None
+        self._search_var.trace_add("write", lambda *_: self._search_debounce())
         self.search_entry.bind("<Return>",       lambda e: self._search_step(1))
         self.search_entry.bind("<Shift-Return>", lambda e: self._search_step(-1))
         self.search_entry.bind("<Escape>",       lambda e: self._hide_search())
@@ -935,10 +936,11 @@ class ReportApp(tk.Tk):
         log_vsb.pack(side="right", fill="y")
         self.log_text = tk.Text(log_frame, bg=LOG_BG, fg=LOG_FG,
                                 font=("Courier", 8), wrap="none",
-                                relief="flat", state="disabled",
+                                relief="flat", state="normal",
                                 yscrollcommand=log_vsb.set,
                                 highlightthickness=0,
-                                selectbackground="#2A4270")
+                                selectbackground="#2A4270",
+                                cursor="xterm")
         log_vsb.configure(command=self.log_text.yview)
         self.log_text.pack(side="left", fill="both", expand=True)
         self.log_text.tag_configure("hit",          background="#3A2E00", foreground="#FFD600")
@@ -947,6 +949,15 @@ class ReportApp(tk.Tk):
         self.log_text.tag_configure("kwtag",         foreground="#E8C468", font=("Arial", 7, "bold"))
         self.log_text.tag_configure("search_match",  background="#1A5276", foreground="#FFFFFF")
         self.log_text.tag_configure("search_active", background=ACCENT,    foreground="#000000")
+        # Block all editing keys but allow selection and Ctrl+C/A
+        def _block_edit(e):
+            if e.state & 4:  # Ctrl held — allow copy/select-all
+                if e.keysym.lower() in ("c", "a", "f"): return
+            if e.keysym in ("Left","Right","Up","Down","Home","End",
+                            "Prior","Next","Control_L","Control_R",
+                            "Shift_L","Shift_R"): return
+            return "break"
+        self.log_text.bind("<Key>", _block_edit)
         # Bind Ctrl+F on panel and log text
         for w in (panel, self.log_text):
             w.bind("<Control-f>", lambda e: self._show_search())
@@ -968,6 +979,11 @@ class ReportApp(tk.Tk):
         self.log_text.tag_remove("search_active", "1.0", "end")
         self._search_matches = []; self._search_idx = -1
         self._search_match_lbl.configure(text="")
+
+    def _search_debounce(self):
+        if self._search_after_id:
+            self.after_cancel(self._search_after_id)
+        self._search_after_id = self.after(180, self._search_update)
 
     def _search_update(self):
         t = self.log_text
@@ -1073,12 +1089,9 @@ class ReportApp(tk.Tk):
         threading.Thread(target=_worker, daemon=True).start()
 
     def _log_text_set(self, msg):
-        """Replace log Text content with a single status message."""
         t = self.log_text
-        t.configure(state="normal")
         t.delete("1.0", "end")
         t.insert("end", f"\n  {msg}\n")
-        t.configure(state="disabled")
 
     def _log_set_loading(self, filename):
         self.log_file_var.set(filename)
@@ -1127,22 +1140,18 @@ class ReportApp(tk.Tk):
             self.hit_count_lbl.configure(text=f"⚠ {n} hits")
 
         t = self.log_text
-        t.configure(state="normal")
         t.delete("1.0", "end")
-        t.configure(state="disabled")
         self._render_batch(display_lines, 0)
 
     def _render_batch(self, lines, offset):
         batch = lines[offset:offset + self._BATCH]
         t = self.log_text
-        t.configure(state="normal")
         for lineno, line, kws in batch:
             is_hit = bool(kws)
             tag = "hit" if is_hit else "normal"
             kw_str = f"  [{', '.join(kws)}]" if is_hit else ""
             t.insert("end", f"L{lineno:<6}", ("lineno",))
             t.insert("end", line.rstrip()[:200] + kw_str + "\n", (tag,))
-        t.configure(state="disabled")
         next_offset = offset + self._BATCH
         if next_offset < len(lines):
             self.after(10, lambda: self._render_batch(lines, next_offset))

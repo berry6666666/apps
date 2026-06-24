@@ -69,6 +69,16 @@ def _field_label(field):
             out.append(w.capitalize())
     return " ".join(out)
 
+def _selectable(parent, text, font, bg, fg, **grid_or_pack):
+    """Read-only Entry that looks like a Label but supports text selection/copy."""
+    e = tk.Entry(parent, font=font, bg=bg, fg=fg,
+                 readonlybackground=bg, disabledforeground=fg,
+                 relief="flat", bd=0, highlightthickness=0,
+                 selectbackground="#3A7EBF", selectforeground="#FFFFFF")
+    e.insert(0, text or "—")
+    e.configure(state="readonly")
+    return e
+
 _DEFAULT_KEYWORDS = [
     "ERROR","error","FAIL","FAILED","ALARM","WARNING",
     "ABORT","TIMEOUT","CRITICAL","EXCEPTION","FAULT",
@@ -711,11 +721,9 @@ class ReportApp(tk.Tk):
             tk.Label(rf, text=_field_label(key), font=("Arial",8,"bold"), bg=bg, fg=TEXT_DARK,
                      anchor="w", width=14, padx=6, pady=6).grid(row=0, column=2, sticky="ew")
             tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=3, sticky="ns")
-            tk.Label(rf, text=g_val or "—", font=("Courier",8), bg=bg, fg=g_fg, anchor="w",
-                     padx=6, pady=6, justify="left").grid(row=0, column=4, sticky="ew")
+            _selectable(rf, g_val, ("Courier",8), bg, g_fg).grid(row=0, column=4, sticky="ew", padx=6, pady=4)
             tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=5, sticky="ns")
-            tk.Label(rf, text=i_val or "—", font=("Courier",8), bg=bg, fg=i_fg, anchor="w",
-                     padx=6, pady=6, justify="left").grid(row=0, column=6, sticky="ew")
+            _selectable(rf, i_val, ("Courier",8), bg, i_fg).grid(row=0, column=6, sticky="ew", padx=6, pady=4)
             tk.Frame(self.diff_frame, bg=BORDER, height=1).pack(fill="x")
 
     # ── 並排 Diff 視窗 ────────────────────────────────────────
@@ -1578,9 +1586,9 @@ class ReportApp(tk.Tk):
             tk.Label(rf, text="●", font=("Arial",11), bg=bg, fg=dot_c, padx=6, pady=6).pack(side="left")
             tk.Label(rf, text=field, font=("Arial",9,"bold"), bg=bg, fg=TEXT_DARK, width=18, anchor="w", padx=4, pady=6).pack(side="left")
             tk.Frame(rf, bg=BORDER, width=1).pack(side="left", fill="y")
-            tk.Label(rf, text=g_val or "—", font=("Courier",9), bg=bg, fg=TEXT_DARK, width=22, anchor="w", padx=8, pady=6).pack(side="left")
+            _selectable(rf, g_val, ("Courier",9), bg, TEXT_DARK).pack(side="left", padx=8, pady=4, fill="x", expand=True)
             tk.Frame(rf, bg=BORDER, width=1).pack(side="left", fill="y")
-            tk.Label(rf, text=i_val or "—", font=("Courier",9), bg=bg, fg=i_fg, width=22, anchor="w", padx=8, pady=6).pack(side="left")
+            _selectable(rf, i_val, ("Courier",9), bg, i_fg).pack(side="left", padx=8, pady=4, fill="x", expand=True)
             tk.Frame(tbl, bg=BORDER, height=1).pack(fill="x")
 
         self._popup_sec(body, "Issue Description", pad)

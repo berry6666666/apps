@@ -949,15 +949,14 @@ class ReportApp(tk.Tk):
         self.log_text.tag_configure("kwtag",         foreground="#E8C468", font=("Arial", 7, "bold"))
         self.log_text.tag_configure("search_match",  background="#1A5276", foreground="#FFFFFF")
         self.log_text.tag_configure("search_active", background=ACCENT,    foreground="#000000")
-        # Block all editing keys but allow selection and Ctrl+C/A
-        def _block_edit(e):
-            if e.state & 4:  # Ctrl held — allow copy/select-all
-                if e.keysym.lower() in ("c", "a", "f"): return
-            if e.keysym in ("Left","Right","Up","Down","Home","End",
-                            "Prior","Next","Control_L","Control_R",
-                            "Shift_L","Shift_R"): return
-            return "break"
-        self.log_text.bind("<Key>", _block_edit)
+        # Make read-only but keep selection and copy working:
+        # only block the events that actually modify content.
+        _noop = lambda e: "break"
+        self.log_text.bind("<<Paste>>",     _noop)
+        self.log_text.bind("<<Cut>>",       _noop)
+        self.log_text.bind("<BackSpace>",   _noop)
+        self.log_text.bind("<Delete>",      _noop)
+        self.log_text.bind("<KeyPress>",    lambda e: "break" if len(e.char) == 1 and not (e.state & 0x4) else None)
         # Bind Ctrl+F on panel and log text
         for w in (panel, self.log_text):
             w.bind("<Control-f>", lambda e: self._show_search())

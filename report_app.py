@@ -676,8 +676,15 @@ class ReportApp(tk.Tk):
                   command=lambda c=None, t=tag: self._pick_rcp_file(card, t)).pack(side="left", padx=(3,0))
         preview = scrolledtext.ScrolledText(
             inner, height=12, font=("Courier", 7), bg=BG_INPUT, fg=TEXT_DARK,
-            relief="flat", wrap="word", state="disabled", highlightthickness=0, borderwidth=0)
+            relief="flat", wrap="word", highlightthickness=0, borderwidth=0,
+            selectbackground="#3A7EBF", selectforeground="#FFFFFF")
         preview.pack(fill="both", expand=True, pady=(5,0))
+        _noop = lambda e: "break"
+        preview.bind("<<Paste>>",   _noop)
+        preview.bind("<<Cut>>",     _noop)
+        preview.bind("<BackSpace>", _noop)
+        preview.bind("<Delete>",    _noop)
+        preview.bind("<KeyPress>",  lambda e: "break" if len(e.char)==1 and not (e.state & 0x4) else None)
         card._file_var = file_var; card._data = {}; card._preview = preview; card._raw = ""
         return card
 
@@ -690,11 +697,9 @@ class ReportApp(tk.Tk):
         card._raw  = raw
         card._data = parse_rcp_text(raw)
         card._file_var.set(os.path.basename(path))
-        card._preview.configure(state="normal")
         card._preview.delete("1.0", "end")
         for f in RCP_FIELDS:
             card._preview.insert("end", f"{f}:\n  {card._data.get(f) or '(not found)'}\n\n")
-        card._preview.configure(state="disabled")
         if tag == "golden": self.golden_data = card._data
         else:               self.issue_data  = card._data
 
@@ -1564,10 +1569,15 @@ class ReportApp(tk.Tk):
         tags = rec.get("tags",[])
         if tags:
             tf = tk.Frame(body, bg=BG_LIGHT); tf.pack(fill="x", padx=pad, pady=(12,4))
-            tk.Label(tf, text="Tags:", font=("Arial",9), bg=BG_LIGHT, fg=TEXT_MID).pack(side="left")
+            tk.Label(tf, text="Alarm code:", font=("Arial",9), bg=BG_LIGHT, fg=TEXT_MID).pack(side="left")
             for tag in tags:
-                tk.Label(tf, text=tag, font=("Arial",9,"bold"), bg="#EDE9FE", fg="#7C3AED",
-                         padx=8, pady=2).pack(side="left", padx=(0,6))
+                e = tk.Entry(tf, font=("Arial",9,"bold"),
+                             bg="#EDE9FE", fg="#7C3AED",
+                             readonlybackground="#EDE9FE",
+                             relief="flat", bd=0, highlightthickness=0,
+                             selectbackground="#3A7EBF", selectforeground="#FFFFFF")
+                e.insert(0, tag); e.configure(state="readonly")
+                e.pack(side="left", padx=(0,6), ipady=2)
 
         self._popup_sec(body, "RCP Field Comparison", pad)
         tbl = tk.Frame(body, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
@@ -1591,11 +1601,21 @@ class ReportApp(tk.Tk):
             _selectable(rf, i_val, ("Courier",9), bg, i_fg).pack(side="left", padx=8, pady=4, fill="x", expand=True)
             tk.Frame(tbl, bg=BORDER, height=1).pack(fill="x")
 
+        # Issue description — use Text so it wraps and is selectable
         self._popup_sec(body, "Issue Description", pad)
         desc_f = tk.Frame(body, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         desc_f.pack(fill="x", padx=pad, pady=(0,12))
-        tk.Label(desc_f, text=rec["desc"], font=("Arial",10), bg=BG_CARD, fg=TEXT_DARK,
-                 anchor="w", wraplength=740, justify="left", padx=14, pady=12).pack(fill="x")
+        desc_txt = tk.Text(desc_f, font=("Arial",10), bg=BG_CARD, fg=TEXT_DARK,
+                           relief="flat", wrap="word", padx=14, pady=12,
+                           highlightthickness=0, borderwidth=0,
+                           selectbackground="#3A7EBF", selectforeground="#FFFFFF")
+        desc_txt.insert("1.0", rec["desc"])
+        desc_txt.configure(state="disabled")
+        desc_txt.bind("<Button-1>", lambda e: desc_txt.configure(state="normal"))
+        desc_txt.bind("<FocusOut>", lambda e: desc_txt.configure(state="disabled"))
+        lines = max(2, rec["desc"].count("\n") + len(rec["desc"])//80 + 1)
+        desc_txt.configure(height=lines)
+        desc_txt.pack(fill="x")
 
         log_kws = rec.get("log_keywords",[])
         if log_kws:

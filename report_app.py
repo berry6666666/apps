@@ -451,7 +451,7 @@ class ReportApp(tk.Tk):
         frame.pack(fill="x", padx=10, pady=2)
         icon_l = tk.Label(frame, text=icon, font=("Arial", 13), bg=BG_PANEL, fg=TEXT_MUTED, width=2, anchor="w")
         icon_l.pack(side="left", padx=(10, 5), pady=10)
-        text_l = tk.Label(frame, text=label, font=("Arial", 9), bg=BG_PANEL, fg=TEXT_MUTED, anchor="w")
+        text_l = tk.Label(frame, text=label, font=("Arial", 8), bg=BG_PANEL, fg=TEXT_MUTED, anchor="w")
         text_l.pack(side="left", pady=10)
         if shortcut:
             tk.Label(frame, text=shortcut, font=("Arial", 7), bg=BG_PANEL, fg="#3D5270").pack(side="right", padx=6)

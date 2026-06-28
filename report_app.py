@@ -659,8 +659,8 @@ class ReportApp(tk.Tk):
         cards_row = tk.Frame(inner, bg=BG_LIGHT)
         cards_row.pack(fill="x", padx=pad, pady=(10,6))
         cards_row.columnconfigure(0, weight=1); cards_row.columnconfigure(1, weight=1)
-        self.golden_card = self._build_rcp_card(cards_row, "GOLDEN RCP", "Baseline", SUCCESS, 0)
-        self.issue_card  = self._build_rcp_card(cards_row, "ISSUE RCP",  "Issue",    ACCENT,  1)
+        self.golden_card = self._build_rcp_card(cards_row, "Golden RCP", "Baseline", SUCCESS, 0)
+        self.issue_card  = self._build_rcp_card(cards_row, "Issue RCP",  "Issue",    ACCENT,  1)
 
         btn_row = tk.Frame(inner, bg=BG_LIGHT)
         btn_row.pack(fill="x", padx=pad, pady=(2,6))
@@ -718,10 +718,12 @@ class ReportApp(tk.Tk):
         card = tk.Frame(parent, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
         card.grid(row=0, column=col, sticky="nsew", padx=(0,5) if col==0 else (5,0))
         tk.Frame(card, bg=color, height=3).pack(fill="x")
-        inner = tk.Frame(card, bg=BG_CARD, padx=10, pady=8)
+        inner = tk.Frame(card, bg=BG_CARD, padx=10, pady=6)
         inner.pack(fill="both", expand=True)
-        tk.Label(inner, text=title, font=("Arial", 10, "bold"), bg=BG_CARD, fg=TEXT_DARK).pack(anchor="w")
-        tk.Label(inner, text=subtitle, font=("Arial", 7), bg=BG_CARD, fg=TEXT_MUTED).pack(anchor="w", pady=(1,5))
+        # title + subtitle on a single compact line to save vertical space
+        head = tk.Frame(inner, bg=BG_CARD); head.pack(fill="x", pady=(0,4))
+        tk.Label(head, text=title, font=("Arial", 10, "bold"), bg=BG_CARD, fg=TEXT_DARK).pack(side="left")
+        tk.Label(head, text=subtitle, font=("Arial", 7), bg=BG_CARD, fg=TEXT_MUTED).pack(side="left", padx=(6,0), pady=(3,0))
         file_var = tk.StringVar(value="Not selected")
         row = tk.Frame(inner, bg=BG_CARD); row.pack(fill="x")
         tk.Label(row, textvariable=file_var, font=("Arial", 7), bg=BG_INPUT, fg=TEXT_MID, anchor="w",

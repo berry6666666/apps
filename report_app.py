@@ -414,15 +414,18 @@ class ReportApp(tk.Tk):
 
     # ── Sidebar ────────────────────────────────────────────────
     def _build_ui(self):
-        self.sidebar = tk.Frame(self, bg=BG_PANEL, width=190)
+        SIDEBAR_W = 210
+        self.sidebar = tk.Frame(self, bg=BG_PANEL, width=SIDEBAR_W)
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
         logo_f = tk.Frame(self.sidebar, bg=BG_PANEL, pady=18)
         logo_f.pack(fill="x")
         tk.Label(logo_f, text="⚑", font=("Arial", 24), bg=BG_PANEL, fg=ACCENT).pack()
-        tk.Label(logo_f, text="Tool Issue Reporter", font=("Arial", 13, "bold"), bg=BG_PANEL, fg=TEXT_LIGHT).pack()
-        tk.Label(logo_f, text="Tool Issue Reporter v1.0", font=("Arial", 7), bg=BG_PANEL, fg=TEXT_MUTED).pack(pady=(2,0))
+        # wraplength keeps the brand text inside the sidebar regardless of width
+        tk.Label(logo_f, text="Tool Issue Reporter", font=("Arial", 12, "bold"),
+                 bg=BG_PANEL, fg=TEXT_LIGHT, wraplength=SIDEBAR_W-24, justify="center").pack(fill="x", padx=12)
+        tk.Label(logo_f, text="v1.0", font=("Arial", 7), bg=BG_PANEL, fg=TEXT_MUTED).pack(pady=(2,0))
         tk.Frame(self.sidebar, bg="#374D65", height=1).pack(fill="x", padx=16, pady=6)
 
         self.nav_buttons = {}

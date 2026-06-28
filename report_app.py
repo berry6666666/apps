@@ -46,6 +46,7 @@ DIFF_DEL   = "#FEF7EE"
 DIFF_ADD   = "#F0FFF4"
 DOT_GREEN  = "#3DE08D"   # 銀光綠 — bright luminous green
 DOT_YELLOW = "#FFD60A"   # 亮黃 — bright yellow
+DOT_RED    = "#E5484D"   # 紅燈 — mismatch indicator
 KW_TAG_BG  = "#1B2B4B"
 LOG_BG     = "#0F1A2E"
 LOG_FG     = "#D4DCE8"
@@ -299,14 +300,14 @@ def export_html(rec):
     diff_rows = diff_dicts(rec.get("golden", {}), rec.get("issue", {}))
     diff_html = ""
     for field, g_val, i_val, status in diff_rows:
-        color = "#FEF3C7" if status == "mismatch" else ("#F0FFF4" if status == "match" else "#F9FAFB")
-        dot   = "🟡" if status == "mismatch" else ("🟢" if status == "match" else "⚪")
+        color = "#FDECEC" if status == "mismatch" else ("#F0FFF4" if status == "match" else "#F9FAFB")
+        dot   = "🔴" if status == "mismatch" else ("🟢" if status == "match" else "⚪")
         diff_html += f"""
         <tr style="background:{color}">
           <td style="padding:6px 10px;font-size:13px">{dot}</td>
           <td style="padding:6px 10px;font-weight:600;font-size:13px">{field}</td>
           <td style="padding:6px 10px;font-family:monospace;font-size:12px">{g_val or '—'}</td>
-          <td style="padding:6px 10px;font-family:monospace;font-size:12px;color:{'#B45309' if status=='mismatch' else '#1a1a2e'}">{i_val or '—'}</td>
+          <td style="padding:6px 10px;font-family:monospace;font-size:12px;color:{'#D32F2F' if status=='mismatch' else '#1a1a2e'}">{i_val or '—'}</td>
         </tr>"""
     log_html = ""
     for entry in rec.get("log_hits", []):
@@ -677,7 +678,7 @@ class ReportApp(tk.Tk):
         self.compare_status.pack(side="left", padx=8)
         leg = tk.Frame(btn_row, bg=BG_LIGHT)
         leg.pack(side="right")
-        for dot_c, txt in [(DOT_GREEN,"Match"),(DOT_YELLOW,"Mismatch")]:
+        for dot_c, txt in [(DOT_GREEN,"Match"),(DOT_RED,"Mismatch")]:
             lf = tk.Frame(leg, bg=BG_LIGHT); lf.pack(side="left", padx=4)
             tk.Label(lf, text="●", font=("Arial", 9), bg=BG_LIGHT, fg=dot_c).pack(side="left")
             tk.Label(lf, text=txt, font=("Arial", 7), bg=BG_LIGHT, fg=TEXT_MID).pack(side="left")
@@ -757,11 +758,11 @@ class ReportApp(tk.Tk):
         n_match = sum(1 for r in active if r[3]=="match")
         n_miss  = sum(1 for r in active if r[3]=="mismatch")
         self.compare_status.configure(text=f"● {n_match} Match  ● {n_miss} Mismatch",
-                                       fg=ACCENT if n_miss else DOT_GREEN)
+                                       fg=DOT_RED if n_miss else DOT_GREEN)
         for i, (key, g_val, i_val, status) in enumerate(rows):
             bg = BG_CARD if i%2==0 else BG_LIGHT
             if status=="match":    dot_c,g_fg,i_fg = DOT_GREEN,TEXT_DARK,TEXT_DARK
-            elif status=="mismatch": dot_c,g_fg,i_fg,bg = DOT_YELLOW,TEXT_DARK,"#B45309",DIFF_DEL
+            elif status=="mismatch": dot_c,g_fg,i_fg,bg = DOT_RED,TEXT_DARK,DOT_RED,DIFF_DEL
             elif status in ("only_issue","only_golden"): dot_c,g_fg,i_fg = DOT_YELLOW,TEXT_MUTED,TEXT_MUTED
             else: dot_c,g_fg,i_fg = TEXT_MUTED,TEXT_MUTED,TEXT_MUTED
             rf = tk.Frame(self.diff_frame, bg=bg); rf.pack(fill="x")
@@ -1765,8 +1766,8 @@ class ReportApp(tk.Tk):
                      anchor="w", width=w, padx=8, pady=5).pack(side="left")
         for j, (field, g_val, i_val, status) in enumerate(diff_dicts(rec["golden"], rec["issue"])):
             bg = BG_CARD if j%2==0 else BG_LIGHT
-            dot_c = DOT_GREEN if status=="match" else (DOT_YELLOW if status=="mismatch" else TEXT_MUTED)
-            i_fg  = "#B45309" if status=="mismatch" else TEXT_DARK
+            dot_c = DOT_GREEN if status=="match" else (DOT_RED if status=="mismatch" else TEXT_MUTED)
+            i_fg  = DOT_RED if status=="mismatch" else TEXT_DARK
             if status=="mismatch": bg = DIFF_DEL
             rf = tk.Frame(tbl, bg=bg); rf.pack(fill="x")
             tk.Label(rf, text="●", font=("Arial",11), bg=bg, fg=dot_c, padx=6, pady=6).pack(side="left")

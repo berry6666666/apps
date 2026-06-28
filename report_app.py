@@ -1384,6 +1384,9 @@ class ReportApp(tk.Tk):
 
         self.issue_tree.bind("<Button-1>", self._on_tree_click)
         self.issue_tree.bind("<Double-1>", self._on_tree_double)
+        self.issue_tree.bind("<Button-3>", self._on_tree_rightclick)
+        self.issue_tree.bind("<Control-c>", self._copy_tree_selection)
+        self._last_clicked_col = None  # track last-clicked column for right-click copy
 
         self._rec_by_iid = {}
         self._selected_ids = set()
@@ -1406,6 +1409,7 @@ class ReportApp(tk.Tk):
         if not iid: return
         try: cid = self._tree_cols[int(col[1:]) - 1][0]
         except (ValueError, IndexError): return
+        self._last_clicked_col = col
         rec = self._rec_by_iid.get(iid)
         if rec is None: return
         if cid == "del":
@@ -1419,6 +1423,54 @@ class ReportApp(tk.Tk):
         iid = self.issue_tree.identify_row(event.y)
         rec = self._rec_by_iid.get(iid)
         if rec is not None: self._show_issue_detail(rec)
+
+    def _tree_row_text(self, iid):
+        """Return tab-separated text for a treeview row (skip del/exp columns)."""
+        values = self.issue_tree.item(iid, "values")
+        skip = {"del", "exp"}
+        parts = []
+        for (cid, heading, *_), val in zip(self._tree_cols, values):
+            if cid not in skip:
+                parts.append(str(val) if val else "")
+        return "\t".join(parts)
+
+    def _copy_tree_selection(self, event=None):
+        sel = self.issue_tree.selection()
+        if not sel:
+            return
+        lines = [self._tree_row_text(iid) for iid in sel]
+        text = "\n".join(lines)
+        self.clipboard_clear()
+        self.clipboard_append(text)
+
+    def _on_tree_rightclick(self, event):
+        iid = self.issue_tree.identify_row(event.y)
+        col = self.issue_tree.identify_column(event.x)
+        if not iid:
+            return
+        # ensure the row is selected
+        if iid not in self.issue_tree.selection():
+            self.issue_tree.selection_set(iid)
+
+        # determine cell value for "Copy cell"
+        cell_val = ""
+        try:
+            col_idx = int(col[1:]) - 1
+            values = self.issue_tree.item(iid, "values")
+            cell_val = str(values[col_idx]) if col_idx < len(values) else ""
+        except (ValueError, IndexError):
+            pass
+
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label=f"Copy cell value",
+                         command=lambda v=cell_val: (self.clipboard_clear(), self.clipboard_append(v)))
+        menu.add_command(label="Copy row",
+                         command=lambda i=iid: (self.clipboard_clear(), self.clipboard_append(self._tree_row_text(i))))
+        sel = self.issue_tree.selection()
+        if len(sel) > 1:
+            menu.add_command(label=f"Copy {len(sel)} selected rows",
+                             command=self._copy_tree_selection)
+        menu.tk_popup(event.x_root, event.y_root)
 
     def _filtered_records(self):
         q   = self._filter_text.get().lower()

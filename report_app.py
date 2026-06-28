@@ -61,7 +61,7 @@ RCP_FIELDS = [
 ]
 
 _FIELD_LABEL_OVERRIDE = {
-    "RCP SCAN TIME": "RCP Start Time",
+    "RCP SCAN TIME": "Scan Start Time",
 }
 
 def _field_label(field):
@@ -1465,7 +1465,7 @@ class ReportApp(tk.Tk):
             ("rcp",   "RCP name",        120, 80,  "w",      True),
             ("lot",   "Lot id",          76,  60,  "w",      False),
             ("mtime", "RCP modify time", 112, 90,  "w",      False),
-            ("stime", "RCP Start time",  112, 90,  "w",      False),
+            ("stime", "Scan Start time", 112, 90,  "w",      False),
             ("etime", "Scan end time",   112, 90,  "w",      False),
             ("alarm", "Alarm code",      110, 80,  "w",      False),
             ("log",   "Log detection",   100, 70,  "w",      False),

@@ -729,7 +729,6 @@ class ReportApp(tk.Tk):
         # title + subtitle on a single compact line to save vertical space
         head = tk.Frame(inner, bg=BG_CARD); head.pack(fill="x", pady=(0,4))
         tk.Label(head, text=title, font=("Arial", 10, "bold"), bg=BG_CARD, fg=TEXT_DARK).pack(side="left")
-        tk.Label(head, text=subtitle, font=("Arial", 7), bg=BG_CARD, fg=TEXT_MUTED).pack(side="left", padx=(6,0), pady=(3,0))
         file_var = tk.StringVar(value="Not selected")
         row = tk.Frame(inner, bg=BG_CARD); row.pack(fill="x")
         tk.Label(row, textvariable=file_var, font=("Arial", 7), bg=BG_INPUT, fg=TEXT_MID, anchor="w",

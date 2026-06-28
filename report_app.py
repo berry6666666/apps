@@ -1,5 +1,5 @@
 """
-RCP Issue Reporter v1.0  (Phase 1)
+Tool Issue Reporter v1.0  (Phase 1)
 Features: search/filter, HTML export, side-by-side diff, keyboard shortcuts,
           auto log detection, selectable/copyable UI, RAW COUNT compare
 """
@@ -348,7 +348,7 @@ def export_html(rec):
 <div class="card"><h2>Issue Description</h2><p style="font-size:14px;line-height:1.7">{rec['desc']}</p></div>
 {'<div class="card"><h2>Log TS Hits (' + str(len(rec.get("log_hits",[]))) + ')</h2>' + log_html + '</div>' if rec.get('log_hits') else ''}
 {'<div class="card"><h2>Screenshots</h2>' + img_html + '</div>' if rec.get('images') else ''}
-<div style="text-align:center;color:#aaa;font-size:12px;margin-top:16px">RCP Issue Reporter v4.0 · Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
+<div style="text-align:center;color:#aaa;font-size:12px;margin-top:16px">Tool Issue Reporter v1.0 · Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
 </body></html>"""
     with open(fname, "w", encoding="utf-8") as f:
         f.write(html)
@@ -376,7 +376,7 @@ def _make_scrollable(parent, bg):
 class ReportApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("RCP Issue Reporter v4.0")
+        self.title("Tool Issue Reporter v1.0")
         self.geometry("1400x860")
         self.minsize(900, 600)
         self.configure(bg=BG_DARK)
@@ -421,15 +421,15 @@ class ReportApp(tk.Tk):
         logo_f = tk.Frame(self.sidebar, bg=BG_PANEL, pady=18)
         logo_f.pack(fill="x")
         tk.Label(logo_f, text="⚑", font=("Arial", 24), bg=BG_PANEL, fg=ACCENT).pack()
-        tk.Label(logo_f, text="Issue Reporter", font=("Arial", 13, "bold"), bg=BG_PANEL, fg=TEXT_LIGHT).pack()
-        tk.Label(logo_f, text="RCP Issue Reporter v4.0", font=("Arial", 7), bg=BG_PANEL, fg=TEXT_MUTED).pack(pady=(2,0))
+        tk.Label(logo_f, text="Tool Issue Reporter", font=("Arial", 13, "bold"), bg=BG_PANEL, fg=TEXT_LIGHT).pack()
+        tk.Label(logo_f, text="Tool Issue Reporter v1.0", font=("Arial", 7), bg=BG_PANEL, fg=TEXT_MUTED).pack(pady=(2,0))
         tk.Frame(self.sidebar, bg="#374D65", height=1).pack(fill="x", padx=16, pady=6)
 
         self.nav_buttons = {}
         self.issue_count_lbl = None
         for key, icon, label, shortcut in [
-            ("main",       "⊞",  "File Report", ""),
-            ("tool_issue", "☰",  "Tool Issue",  ""),
+            ("main",       "⊞",  "Issue Report", ""),
+            ("tool_issue", "☰",  "Issue List",  ""),
         ]:
             self.nav_buttons[key] = self._make_nav_btn(key, icon, label, shortcut)
 
@@ -616,10 +616,6 @@ class ReportApp(tk.Tk):
     # ══════════════════════════════════════════════════════════
     def _build_main_page(self):
         page = tk.Frame(self.content, bg=BG_LIGHT)
-        hdr = tk.Frame(page, bg=BG_DARK, height=54)
-        hdr.pack(fill="x"); hdr.pack_propagate(False)
-        tk.Label(hdr, text="File Report", font=("Arial", 15, "bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=24, pady=14)
-        tk.Label(hdr, text="RCP Compare + Report Info  |  Auto Log detection", font=("Arial", 10), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
 
         pane = tk.PanedWindow(page, orient="horizontal", bg=BORDER, sashwidth=4, sashrelief="flat")
         pane.pack(fill="both", expand=True)
@@ -1421,7 +1417,7 @@ class ReportApp(tk.Tk):
         page = tk.Frame(self.content, bg=BG_LIGHT)
         hdr = tk.Frame(page, bg=BG_DARK, height=54)
         hdr.pack(fill="x"); hdr.pack_propagate(False)
-        tk.Label(hdr, text="Tool Issue", font=("Arial",15,"bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=24, pady=14)
+        tk.Label(hdr, text="Issue List", font=("Arial",15,"bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=24, pady=14)
 
         # 操作列
         toolbar = tk.Frame(page, bg="#EEF1F6", pady=8)

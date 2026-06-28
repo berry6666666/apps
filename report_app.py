@@ -246,6 +246,46 @@ def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):
         if matched: hits.append((lineno, line, matched))
     return hits, all_lines, in_range, skipped
 
+
+def scan_log_folder(folder, keywords, scan_start=None, scan_end=None,
+                    exts=(".log", ".txt"), progress=None):
+    """Scan every log file under `folder` (recursively), keep only the files
+    that contain lines within [scan_start, scan_end], and within those flag
+    keyword hits.
+
+    Returns (hits, all_lines, summaries, in_range_total, files_scanned, files_matched)
+    where each line entry is a 4-tuple (fname, lineno, line, matched_kws) and
+    `summaries` is a list of (fname, in_range_count, hit_count)."""
+    paths = []
+    for root, _dirs, files in os.walk(folder):
+        for fn in files:
+            if fn.lower().endswith(exts):
+                paths.append(os.path.join(root, fn))
+    paths.sort()
+
+    hits, all_lines, summaries = [], [], []
+    in_range_total = 0
+    files_matched = 0
+    for idx, p in enumerate(paths, 1):
+        if progress:
+            progress(idx, len(paths), os.path.basename(p))
+        try:
+            try:    raw = open(p, "r", encoding="utf-8-sig").read()
+            except: raw = open(p, "r", encoding="big5", errors="replace").read()
+        except Exception:
+            continue
+        fh, fa, fin, _fskip = scan_log_keywords(raw, keywords, scan_start, scan_end)
+        if not fa:                      # no lines in the time range → irrelevant log
+            continue
+        files_matched += 1
+        fname = os.path.basename(p)
+        for lineno, line, kws in fa:
+            all_lines.append((fname, lineno, line, kws))
+        hits.extend((fname, ln, li, kws) for ln, li, kws in fh)
+        summaries.append((fname, fin, len(fh)))
+        in_range_total += fin
+    return hits, all_lines, summaries, in_range_total, len(paths), files_matched
+
 # ─── HTML Export ─────────────────────────────────────────────
 def export_html(rec):
     os.makedirs(EXPORTS_DIR, exist_ok=True)
@@ -263,9 +303,16 @@ def export_html(rec):
           <td style="padding:6px 10px;font-family:monospace;font-size:12px;color:{'#B45309' if status=='mismatch' else '#1a1a2e'}">{i_val or '—'}</td>
         </tr>"""
     log_html = ""
-    for lineno, line, kws in rec.get("log_hits", []):
+    for entry in rec.get("log_hits", []):
+        # entries may be 3-tuples (lineno, line, kws) or 4-tuples (fname, lineno, line, kws)
+        if len(entry) == 4:
+            fname, lineno, line, kws = entry
+            label = f"{fname}:{lineno}"
+        else:
+            lineno, line, kws = entry
+            label = f"L{lineno}"
         kw_badges = "".join(f'<span style="background:#C0522A;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;margin-left:4px">{k}</span>' for k in kws)
-        log_html += f'<div style="background:#1E2837;color:#F0B755;padding:5px 10px;margin:2px 0;border-radius:4px;font-family:monospace;font-size:12px"><span style="color:#94A3B8;margin-right:8px">L{lineno}</span>{line.strip()[:160]}{kw_badges}</div>'
+        log_html += f'<div style="background:#1E2837;color:#F0B755;padding:5px 10px;margin:2px 0;border-radius:4px;font-family:monospace;font-size:12px"><span style="color:#94A3B8;margin-right:8px">{label}</span>{line.strip()[:160]}{kw_badges}</div>'
     img_html = ""
     for name, img in rec.get("images", []):
         thumb = img.copy(); thumb.thumbnail((280, 200))
@@ -341,6 +388,10 @@ class ReportApp(tk.Tk):
         self.log_t_end     = None
         self.log_in_range  = 0
         self.log_skipped   = 0
+        self.log_folder_mode = False
+        self.log_summaries   = []
+        self.log_files_scanned = 0
+        self.log_files_matched = 0
         self._log_scanning = False
 
         # 篩選狀態
@@ -880,10 +931,14 @@ class ReportApp(tk.Tk):
         self.log_file_var = tk.StringVar(value="No log file selected")
         tk.Label(pick_row, textvariable=self.log_file_var, font=("Arial", 8),
                  bg=BG_INPUT, fg=TEXT_MID, anchor="w", padx=8, pady=4).pack(side="left", fill="x", expand=True)
-        tk.Button(pick_row, text="Select Log", font=("Arial", 9, "bold"),
+        tk.Button(pick_row, text="📁 Scan Folder", font=("Arial", 9, "bold"),
+                  bg=ACCENT, fg=TEXT_LIGHT, relief="flat", padx=12, pady=4, cursor="hand2",
+                  activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
+                  command=self._pick_log_folder).pack(side="left", padx=(6,0))
+        tk.Button(pick_row, text="Single Log", font=("Arial", 9),
                   bg=SH_LOG, fg=TEXT_LIGHT, relief="flat", padx=12, pady=4, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
-                  command=self._pick_log_file).pack(side="left", padx=(6,0))
+                  command=self._pick_log_file).pack(side="left", padx=(4,0))
         tk.Button(pick_row, text="Clear", font=("Arial", 8), bg=BG_LIGHT, fg=TEXT_MID,
                   relief="flat", padx=6, pady=4, cursor="hand2",
                   command=self._clear_log).pack(side="left", padx=(4,0))
@@ -963,6 +1018,8 @@ class ReportApp(tk.Tk):
         self.log_text.tag_configure("kwtag",         foreground="#E8C468", font=("Arial", 7, "bold"))
         self.log_text.tag_configure("search_match",  background="#1A5276", foreground="#FFFFFF")
         self.log_text.tag_configure("search_active", background=ACCENT,    foreground="#000000")
+        self.log_text.tag_configure("filehdr",        foreground="#7FB3E0", font=("Courier", 8, "bold"))
+        self.log_text.tag_configure("fileitem",       foreground="#A9C7E8")
         # Make read-only but keep selection and copy working:
         # only block the events that actually modify content.
         _noop = lambda e: "break"
@@ -974,7 +1031,7 @@ class ReportApp(tk.Tk):
         # Bind Ctrl+F on panel and log text
         for w in (panel, self.log_text):
             w.bind("<Control-f>", lambda e: self._show_search())
-        self._log_text_set("Select a log file to auto-scan keywords")
+        self._log_text_set("Scan a folder (or a single log) to auto-detect keywords")
         return panel
 
     def _show_search(self):
@@ -1096,10 +1153,59 @@ class ReportApp(tk.Tk):
                 t_start = _parse_rcp_dt(scan_start_str, ref_year) if scan_start_str else None
                 t_end   = _parse_rcp_dt(scan_end_str,   ref_year) if scan_end_str   else None
                 hits, all_lines, in_range, skipped = scan_log_keywords(raw, ISSUE_KEYWORDS, t_start, t_end)
+                fname = os.path.basename(path)
+                # normalise to 4-tuples (fname, lineno, line, kws)
+                hits      = [(fname, ln, li, kws) for ln, li, kws in hits]
+                all_lines = [(fname, ln, li, kws) for ln, li, kws in all_lines]
             except Exception as e:
                 self.after(0, lambda: self._log_set_error(str(e))); return
             self.after(0, lambda: self._log_scan_done(path, raw, hits, all_lines, t_start, t_end, in_range, skipped))
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _pick_log_folder(self):
+        folder = filedialog.askdirectory(title="Select Log Folder (scans all logs inside)")
+        if not folder: return
+        scan_start_str = self.issue_data.get("RCP SCAN TIME","").strip()
+        scan_end_str   = self.issue_data.get("SCAN END TIME","").strip()
+        if not (scan_start_str and scan_end_str):
+            if not messagebox.askyesno(
+                "No time range",
+                "This issue has no RCP scan time range, so every line of every "
+                "log will be loaded (could be very large).\n\nContinue anyway?"):
+                return
+        self._log_set_loading(f"📁 {os.path.basename(folder)}  (scanning folder…)")
+        def _progress(i, total, name):
+            self.after(0, lambda: self.log_status_var.set(
+                f"⏳ Scanning {i}/{total}: {name}"))
+        def _worker():
+            try:
+                global ISSUE_KEYWORDS; ISSUE_KEYWORDS = load_keywords()
+                ref_year = datetime.now().year
+                t_start = _parse_rcp_dt(scan_start_str, ref_year) if scan_start_str else None
+                t_end   = _parse_rcp_dt(scan_end_str,   ref_year) if scan_end_str   else None
+                (hits, all_lines, summaries, in_range,
+                 files_scanned, files_matched) = scan_log_folder(
+                    folder, ISSUE_KEYWORDS, t_start, t_end, progress=_progress)
+            except Exception as e:
+                self.after(0, lambda: self._log_set_error(str(e))); return
+            self.after(0, lambda: self._log_folder_scan_done(
+                folder, hits, all_lines, summaries, t_start, t_end,
+                in_range, files_scanned, files_matched))
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _log_folder_scan_done(self, folder, hits, all_lines, summaries,
+                              t_start, t_end, in_range, files_scanned, files_matched):
+        self.log_raw_text = ""          # combined raw not kept for folder mode
+        self.log_filename = f"{os.path.basename(folder)}  ({files_matched} log(s))"
+        self.log_hits = hits; self.log_all_lines = all_lines
+        self.log_t_start = t_start; self.log_t_end = t_end
+        self.log_in_range = in_range; self.log_skipped = 0
+        self.log_folder_mode = True
+        self.log_summaries = summaries
+        self.log_files_scanned = files_scanned
+        self.log_files_matched = files_matched
+        self.log_file_var.set(self.log_filename)
+        self._render_log_hits()
 
     def _log_text_set(self, msg):
         t = self.log_text
@@ -1122,48 +1228,70 @@ class ReportApp(tk.Tk):
         self.log_hits = hits; self.log_all_lines = all_lines or []
         self.log_t_start = t_start; self.log_t_end = t_end
         self.log_in_range = in_range; self.log_skipped = skipped
+        self.log_folder_mode = False
+        self.log_files_matched = 1
         self._render_log_hits()
 
     _BATCH = 500  # lines per chunk — Text widget handles large batches fine
 
     def _render_log_hits(self):
-        total = self.log_raw_text.count("\n") + 1
         n = len(self.log_hits)
         display_lines = self.log_all_lines if self.log_all_lines else self.log_hits
         t_start = self.log_t_start; t_end = self.log_t_end; in_rng = self.log_in_range
+        folder = getattr(self, "log_folder_mode", False)
+
+        # scope prefix describes what was scanned (single file vs folder)
+        if folder:
+            scope = (f"📁 {getattr(self,'log_files_matched',0)} / "
+                     f"{getattr(self,'log_files_scanned',0)} logs in range")
+        else:
+            total = self.log_raw_text.count("\n") + 1
+            scope = f"{total:,} lines"
+
+        if t_start and t_end:
+            rs = f"{t_start.strftime('%m/%d %H:%M:%S')} ~ {t_end.strftime('%m/%d %H:%M:%S')}"
+            base = f"Range {rs}  {scope}  {in_rng:,} in-range lines"
+        else:
+            base = scope
 
         if n == 0:
-            if t_start and t_end:
-                rs = f"{t_start.strftime('%m/%d %H:%M:%S')} ~ {t_end.strftime('%m/%d %H:%M:%S')}"
-                self.log_status_var.set(f"Range {rs}  {in_rng:,} lines  No issue keywords found ✓")
-            else:
-                self.log_status_var.set(f"{total:,} lines — No issue keywords found ✓")
+            self.log_status_var.set(f"{base}  No issue keywords found ✓")
             self.log_status_lbl.configure(fg=DOT_GREEN)
             self.hit_count_lbl.configure(text="")
             if not display_lines:
-                self._log_text_set("✓  No issue keywords detected")
+                if folder:
+                    self._log_text_set("✓  No logs contained lines within the issue time range")
+                else:
+                    self._log_text_set("✓  No issue keywords detected")
                 return
         else:
-            if t_start and t_end:
-                rs = f"{t_start.strftime('%m/%d %H:%M:%S')} ~ {t_end.strftime('%m/%d %H:%M:%S')}"
-                self.log_status_var.set(f"Range {rs}  {in_rng:,} lines  {n} keyword hits")
-            else:
-                self.log_status_var.set(f"{total:,} lines — {n} keyword hits")
+            self.log_status_var.set(f"{base}  {n} keyword hits")
             self.log_status_lbl.configure(fg=WARNING)
             self.hit_count_lbl.configure(text=f"⚠ {n} hits")
 
         t = self.log_text
         t.delete("1.0", "end")
+        # In folder mode, lead with a one-line summary per matched log file.
+        if folder and getattr(self, "log_summaries", None):
+            t.insert("end", "── Matched logs (file : in-range / hits) ──\n", ("filehdr",))
+            for fname, fin, fhit in self.log_summaries:
+                t.insert("end", f"  • {fname}", ("fileitem",))
+                t.insert("end", f"   {fin:,} lines, {fhit} hits\n", ("lineno",))
+            t.insert("end", "\n", ("normal",))
         self._render_batch(display_lines, 0)
 
     def _render_batch(self, lines, offset):
         batch = lines[offset:offset + self._BATCH]
         t = self.log_text
-        for lineno, line, kws in batch:
+        folder = getattr(self, "log_folder_mode", False)
+        for entry in batch:
+            fname, lineno, line, kws = entry
             is_hit = bool(kws)
             tag = "hit" if is_hit else "normal"
             kw_str = f"  [{', '.join(kws)}]" if is_hit else ""
-            t.insert("end", f"L{lineno:<6}", ("lineno",))
+            # show filename only in folder mode (otherwise it's redundant)
+            label = f"{fname}:{lineno}"[:24].ljust(25) if folder else f"L{lineno:<6}"
+            t.insert("end", label, ("lineno",))
             t.insert("end", line.rstrip()[:200] + kw_str + "\n", (tag,))
         next_offset = offset + self._BATCH
         if next_offset < len(lines):
@@ -1171,9 +1299,11 @@ class ReportApp(tk.Tk):
 
     def _clear_log(self):
         self.log_raw_text=""; self.log_hits=[]; self.log_all_lines=[]; self.log_filename=""
+        self.log_folder_mode=False; self.log_summaries=[]
+        self.log_files_scanned=0; self.log_files_matched=0
         self.log_file_var.set("No log file selected"); self.log_status_var.set("")
         self.hit_count_lbl.configure(text="")
-        self._log_text_set("Select a log file to auto-scan keywords")
+        self._log_text_set("Scan a folder (or a single log) to auto-detect keywords")
 
     def _show_full_log(self):
         if not self.log_raw_text: return
@@ -1195,7 +1325,7 @@ class ReportApp(tk.Tk):
         txt.tag_configure("kw", foreground="#FB923C", font=("Courier",9,"bold"))
         tk.Button(win, text="Close", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
                   relief="flat", padx=14, pady=5, command=win.destroy).pack(pady=6)
-        hit_linenos = {h[0] for h in self.log_hits}
+        hit_linenos = {h[-3] for h in self.log_hits}  # lineno is 2nd-from-... index 1 in 4-tuple
         kw_pattern  = re.compile("|".join(re.escape(k) for k in ISSUE_KEYWORDS))
         all_lines   = self.log_raw_text.splitlines(); total_lines = len(all_lines); CHUNK = 500
         def _insert_chunk(start):
@@ -1215,7 +1345,7 @@ class ReportApp(tk.Tk):
                 win.after(0, lambda: _insert_chunk(end))
             else:
                 prog_lbl.destroy()
-                if self.log_hits: txt.configure(state="normal"); txt.see(f"{self.log_hits[0][0]}.0"); txt.configure(state="disabled")
+                if self.log_hits: txt.configure(state="normal"); txt.see(f"{self.log_hits[0][-3]}.0"); txt.configure(state="disabled")
         win.after(50, lambda: _insert_chunk(0))
 
     # ── Image ─────────────────────────────────────────────────
@@ -1263,7 +1393,7 @@ class ReportApp(tk.Tk):
             messagebox.showwarning("Notice","Please enter an issue description."); return
         tags_raw = self.tags_entry.get().strip()
         tags = [t.strip() for t in tags_raw.split(",") if t.strip() and not t.strip().startswith("e.g")] if tags_raw and not tags_raw.startswith("e.g") else []
-        hit_kws = list(dict.fromkeys(kw for _,_,kws in self.log_hits for kw in kws))
+        hit_kws = list(dict.fromkeys(kw for entry in self.log_hits for kw in entry[-1]))
         record = {
             "id":    len(self.issue_records)+1,
             "time":  datetime.now().strftime("%Y-%m-%d %H:%M"),

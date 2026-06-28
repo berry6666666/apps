@@ -432,7 +432,7 @@ class ReportApp(tk.Tk):
         self.nav_buttons = {}
         self.issue_count_lbl = None
         for key, icon, label, shortcut in [
-            ("main",       "⊞",  "Issue Report", ""),
+            ("main",       "☰",  "Report Issue", ""),
             ("tool_issue", "☰",  "Issue List",  ""),
         ]:
             self.nav_buttons[key] = self._make_nav_btn(key, icon, label, shortcut)

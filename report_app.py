@@ -674,8 +674,14 @@ class ReportApp(tk.Tk):
                   relief="flat", padx=10, pady=6, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._show_side_by_side_diff).pack(side="left", padx=6)
-        self.compare_status = tk.Label(btn_row, text="", font=("Arial", 8), bg=BG_LIGHT, fg=TEXT_MID)
-        self.compare_status.pack(side="left", padx=8)
+        # status: Match part always green, Mismatch part always red
+        status_f = tk.Frame(btn_row, bg=BG_LIGHT); status_f.pack(side="left", padx=8)
+        self.compare_status_match = tk.Label(status_f, text="", font=("Arial", 8, "bold"),
+                                             bg=BG_LIGHT, fg=DOT_GREEN)
+        self.compare_status_match.pack(side="left")
+        self.compare_status_miss  = tk.Label(status_f, text="", font=("Arial", 8, "bold"),
+                                             bg=BG_LIGHT, fg=DOT_RED)
+        self.compare_status_miss.pack(side="left", padx=(8,0))
         leg = tk.Frame(btn_row, bg=BG_LIGHT)
         leg.pack(side="right")
         for dot_c, txt in [(DOT_GREEN,"Match"),(DOT_RED,"Mismatch")]:
@@ -757,8 +763,8 @@ class ReportApp(tk.Tk):
         active  = [r for r in rows if r[3] != "empty"]
         n_match = sum(1 for r in active if r[3]=="match")
         n_miss  = sum(1 for r in active if r[3]=="mismatch")
-        self.compare_status.configure(text=f"● {n_match} Match  ● {n_miss} Mismatch",
-                                       fg=DOT_RED if n_miss else DOT_GREEN)
+        self.compare_status_match.configure(text=f"● {n_match} Match")
+        self.compare_status_miss.configure(text=f"● {n_miss} Mismatch")
         for i, (key, g_val, i_val, status) in enumerate(rows):
             bg = BG_CARD if i%2==0 else BG_LIGHT
             if status=="match":    dot_c,g_fg,i_fg = DOT_GREEN,TEXT_DARK,TEXT_DARK

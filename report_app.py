@@ -59,9 +59,15 @@ RCP_FIELDS = [
     "SCAN END TIME", "LOT ID", "RCP NAME", "RAW COUNT",
 ]
 
+_FIELD_LABEL_OVERRIDE = {
+    "RCP SCAN TIME": "RCP Start Time",
+}
+
 def _field_label(field):
     """Display label for an RCP field: keep 'RCP' and 'ID' as-is,
     title-case every other word (first letter upper, rest lower)."""
+    if field in _FIELD_LABEL_OVERRIDE:
+        return _FIELD_LABEL_OVERRIDE[field]
     out = []
     for w in field.split():
         if w.upper() in ("RCP", "ID"):
@@ -726,18 +732,7 @@ class ReportApp(tk.Tk):
                   relief="flat", padx=6, pady=3, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=lambda c=None, t=tag: self._pick_rcp_file(card, t)).pack(side="left", padx=(3,0))
-        preview = scrolledtext.ScrolledText(
-            inner, height=12, font=("Courier", 7), bg=BG_INPUT, fg=TEXT_DARK,
-            relief="flat", wrap="word", highlightthickness=0, borderwidth=0,
-            selectbackground="#3A7EBF", selectforeground="#FFFFFF")
-        preview.pack(fill="both", expand=True, pady=(5,0))
-        _noop = lambda e: "break"
-        preview.bind("<<Paste>>",   _noop)
-        preview.bind("<<Cut>>",     _noop)
-        preview.bind("<BackSpace>", _noop)
-        preview.bind("<Delete>",    _noop)
-        preview.bind("<KeyPress>",  lambda e: "break" if len(e.char)==1 and not (e.state & 0x4) else None)
-        card._file_var = file_var; card._data = {}; card._preview = preview; card._raw = ""
+        card._file_var = file_var; card._data = {}; card._raw = ""
         return card
 
     def _pick_rcp_file(self, card, tag):
@@ -749,9 +744,6 @@ class ReportApp(tk.Tk):
         card._raw  = raw
         card._data = parse_rcp_text(raw)
         card._file_var.set(os.path.basename(path))
-        card._preview.delete("1.0", "end")
-        for f in RCP_FIELDS:
-            card._preview.insert("end", f"{f}:\n  {card._data.get(f) or '(not found)'}\n\n")
         if tag == "golden": self.golden_data = card._data
         else:               self.issue_data  = card._data
 
@@ -1466,7 +1458,7 @@ class ReportApp(tk.Tk):
             ("rcp",   "RCP name",        120, 80,  "w",      True),
             ("lot",   "Lot id",          76,  60,  "w",      False),
             ("mtime", "RCP modify time", 112, 90,  "w",      False),
-            ("stime", "RCP scan time",   112, 90,  "w",      False),
+            ("stime", "RCP Start time",  112, 90,  "w",      False),
             ("etime", "Scan end time",   112, 90,  "w",      False),
             ("alarm", "Alarm code",      110, 80,  "w",      False),
             ("log",   "Log detection",   100, 70,  "w",      False),

@@ -1,6 +1,7 @@
 """
-RCP Issue Reporter v4.0
-Features: search/filter, HTML export, side-by-side diff, keyboard shortcuts
+RCP Issue Reporter v4.1  (Phase 1)
+Features: search/filter, HTML export, side-by-side diff, keyboard shortcuts,
+          auto log detection, selectable/copyable UI, RAW COUNT compare
 """
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext

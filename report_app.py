@@ -1,5 +1,5 @@
 """
-RCP Issue Reporter v4.1  (Phase 1)
+RCP Issue Reporter v1.0  (Phase 1)
 Features: search/filter, HTML export, side-by-side diff, keyboard shortcuts,
           auto log detection, selectable/copyable UI, RAW COUNT compare
 """

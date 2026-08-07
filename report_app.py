@@ -198,6 +198,28 @@ def diff_dicts(golden, issue):
         rows.append((k, g, i, status))
     return rows
 
+def diff_multi(sources):
+    """Compare N RCP dicts. `sources` is a list of (label, data_dict).
+    Yields (key, [value_per_source], status) for each RCP field.
+      status: 'empty'    → no source has a value
+              'match'    → every source has a value and all are equal
+              'partial'  → the present values agree but some source is missing
+              'mismatch' → present values disagree"""
+    rows = []
+    for k in RCP_FIELDS:
+        vals    = [d.get(k, "") for _, d in sources]
+        present = [v for v in vals if v]
+        if not present:
+            status = "empty"
+        elif len(set(present)) != 1:
+            status = "mismatch"
+        elif len(present) < len(vals):
+            status = "partial"
+        else:
+            status = "match"
+        rows.append((k, vals, status))
+    return rows
+
 # ─── Log Scanner ─────────────────────────────────────────────
 _LOG_TS_RE = re.compile(r'^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{1,2}:\d{2}:\d{2})(?:\.\d+)?')
 _MONTH_MAP = {"Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
@@ -297,17 +319,24 @@ def scan_log_folder(folder, keywords, scan_start=None, scan_end=None,
 def export_html(rec):
     os.makedirs(EXPORTS_DIR, exist_ok=True)
     fname = os.path.join(EXPORTS_DIR, f"issue_{rec['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
-    diff_rows = diff_dicts(rec.get("golden", {}), rec.get("issue", {}))
+    diff_rows = diff_multi([("golden", rec.get("golden", {})),
+                            ("qc",     rec.get("qc", {})),
+                            ("issue",  rec.get("issue", {}))])
     diff_html = ""
-    for field, g_val, i_val, status in diff_rows:
-        color = "#FDECEC" if status == "mismatch" else ("#F0FFF4" if status == "match" else "#F9FAFB")
-        dot   = "🔴" if status == "mismatch" else ("🟢" if status == "match" else "⚪")
+    for field, vals, status in diff_rows:
+        color = "#FDECEC" if status == "mismatch" else ("#F0FFF4" if status == "match"
+                else ("#FFFBEB" if status == "partial" else "#F9FAFB"))
+        dot   = "🔴" if status == "mismatch" else ("🟢" if status == "match"
+                else ("🟡" if status == "partial" else "⚪"))
+        vcolor = "#D32F2F" if status == "mismatch" else "#1a1a2e"
+        cells = "".join(
+            f'<td style="padding:6px 10px;font-family:monospace;font-size:12px;color:{vcolor}">{v or "—"}</td>'
+            for v in vals)
         diff_html += f"""
         <tr style="background:{color}">
           <td style="padding:6px 10px;font-size:13px">{dot}</td>
           <td style="padding:6px 10px;font-weight:600;font-size:13px">{field}</td>
-          <td style="padding:6px 10px;font-family:monospace;font-size:12px">{g_val or '—'}</td>
-          <td style="padding:6px 10px;font-family:monospace;font-size:12px;color:{'#D32F2F' if status=='mismatch' else '#1a1a2e'}">{i_val or '—'}</td>
+          {cells}
         </tr>"""
     log_html = ""
     for entry in rec.get("log_hits", []):
@@ -338,13 +367,13 @@ def export_html(rec):
 </style></head><body>
 <div class="card">
   <h1>⚑ Issue #{rec['id']} Report</h1>
-  <div style="color:#8A9AB0;font-size:13px">{rec['time']} &nbsp;|&nbsp; {rec.get('golden_file','—')} vs {rec.get('issue_file','—')}</div>
+  <div style="color:#8A9AB0;font-size:13px">{rec['time']} &nbsp;|&nbsp; Golden: {rec.get('golden_file','—')} &nbsp;·&nbsp; QC: {rec.get('qc_file','—')} &nbsp;·&nbsp; Issue: {rec.get('issue_file','—')}</div>
   <div style="margin-top:8px">
     {''.join(f'<span class="badge" style="background:#1B2B4B;color:#F0D080;margin-right:6px">{t}</span>' for t in rec.get('tags',[]))}
   </div>
 </div>
 <div class="card"><h2>RCP Field Comparison</h2>
-  <table><tr><th></th><th>Field</th><th>Golden</th><th>Issue</th></tr>{diff_html}</table>
+  <table><tr><th></th><th>Field</th><th>Golden</th><th>QC</th><th>Issue</th></tr>{diff_html}</table>
 </div>
 <div class="card"><h2>Issue Description</h2><p style="font-size:14px;line-height:1.7">{rec['desc']}</p></div>
 {'<div class="card"><h2>Log TS Hits (' + str(len(rec.get("log_hits",[]))) + ')</h2>' + log_html + '</div>' if rec.get('log_hits') else ''}
@@ -383,6 +412,7 @@ class ReportApp(tk.Tk):
         self.configure(bg=BG_DARK)
 
         self.golden_data   = {}
+        self.qc_data       = {}
         self.issue_data    = {}
         self.report_images = []
         self._photo_refs   = []
@@ -659,8 +689,10 @@ class ReportApp(tk.Tk):
         cards_row = tk.Frame(inner, bg=BG_LIGHT)
         cards_row.pack(fill="x", padx=pad, pady=(10,6))
         cards_row.columnconfigure(0, weight=1); cards_row.columnconfigure(1, weight=1)
-        self.golden_card = self._build_rcp_card(cards_row, "Golden RCP", "Baseline", SUCCESS, 0)
-        self.issue_card  = self._build_rcp_card(cards_row, "Issue RCP",  "Issue",    ACCENT,  1)
+        cards_row.columnconfigure(2, weight=1)
+        self.golden_card = self._build_rcp_card(cards_row, "Golden RCP", SUCCESS, "golden", 0)
+        self.qc_card     = self._build_rcp_card(cards_row, "QC RCP",     INFO,    "qc",     1)
+        self.issue_card  = self._build_rcp_card(cards_row, "Issue RCP",  ACCENT,  "issue",  2)
 
         btn_row = tk.Frame(inner, bg=BG_LIGHT)
         btn_row.pack(fill="x", padx=pad, pady=(2,6))
@@ -700,8 +732,11 @@ class ReportApp(tk.Tk):
         tk.Label(diff_hdr, text="Golden RCP", font=("Arial", 8, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                  anchor="w", padx=6, pady=5).grid(row=0, column=4, sticky="ew")
         tk.Frame(diff_hdr, bg=BORDER, width=1).grid(row=0, column=5, sticky="ns")
-        tk.Label(diff_hdr, text="Issue RCP", font=("Arial", 8, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
+        tk.Label(diff_hdr, text="QC RCP", font=("Arial", 8, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                  anchor="w", padx=6, pady=5).grid(row=0, column=6, sticky="ew")
+        tk.Frame(diff_hdr, bg=BORDER, width=1).grid(row=0, column=7, sticky="ns")
+        tk.Label(diff_hdr, text="Issue RCP", font=("Arial", 8, "bold"), bg=BG_DARK, fg=TEXT_LIGHT,
+                 anchor="w", padx=6, pady=5).grid(row=0, column=8, sticky="ew")
 
         self.diff_frame = tk.Frame(inner, bg=BG_LIGHT)
         self.diff_frame.pack(fill="x", padx=pad, pady=(0,10))
@@ -711,35 +746,37 @@ class ReportApp(tk.Tk):
 
     def _apply_diff_cols(self, frame):
         """Shared column layout for diff header/rows: dot, sep, Item (fixed),
-        sep, Golden RCP, sep, Issue RCP. The two RCP columns share equal weight."""
+        then three equal-weight RCP columns (Golden, QC, Issue) each preceded
+        by a separator."""
         frame.columnconfigure(0, minsize=24, weight=0)   # status dot
         frame.columnconfigure(1, minsize=1,  weight=0)   # sep
         frame.columnconfigure(2, minsize=120, weight=0)  # Item (fixed)
         frame.columnconfigure(3, minsize=1,  weight=0)   # sep
         frame.columnconfigure(4, weight=1, uniform="rcp")  # Golden RCP
         frame.columnconfigure(5, minsize=1,  weight=0)   # sep
-        frame.columnconfigure(6, weight=1, uniform="rcp")  # Issue RCP
+        frame.columnconfigure(6, weight=1, uniform="rcp")  # QC RCP
+        frame.columnconfigure(7, minsize=1,  weight=0)   # sep
+        frame.columnconfigure(8, weight=1, uniform="rcp")  # Issue RCP
 
-    def _build_rcp_card(self, parent, title, subtitle, color, col):
+    def _build_rcp_card(self, parent, title, color, tag, col):
         card = tk.Frame(parent, bg=BG_CARD, highlightbackground=BORDER, highlightthickness=1)
-        card.grid(row=0, column=col, sticky="nsew", padx=(0,5) if col==0 else (5,0))
+        card.grid(row=0, column=col, sticky="nsew",
+                  padx=(0,3) if col==0 else ((3,0) if col==2 else 3))
         tk.Frame(card, bg=color, height=3).pack(fill="x")
         inner = tk.Frame(card, bg=BG_CARD, padx=10, pady=6)
         inner.pack(fill="both", expand=True)
-        # title + subtitle on a single compact line to save vertical space
         head = tk.Frame(inner, bg=BG_CARD); head.pack(fill="x", pady=(0,4))
         tk.Label(head, text=title, font=("Arial", 10, "bold"), bg=BG_CARD, fg=TEXT_DARK).pack(side="left")
         file_var = tk.StringVar(value="Not selected")
         row = tk.Frame(inner, bg=BG_CARD); row.pack(fill="x")
         tk.Label(row, textvariable=file_var, font=("Arial", 7), bg=BG_INPUT, fg=TEXT_MID, anchor="w",
-                 padx=5, pady=3, width=14).pack(side="left", fill="x", expand=True)
-        tag = "golden" if col==0 else "issue"
+                 padx=5, pady=3, width=12).pack(side="left", fill="x", expand=True)
         tk.Button(row, text="Select", font=("Arial", 7, "bold"),
                   bg=color, fg=TEXT_LIGHT if color!=SUCCESS else "#0D4A2E",
                   relief="flat", padx=6, pady=3, cursor="hand2",
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
-                  command=lambda c=None, t=tag: self._pick_rcp_file(card, t)).pack(side="left", padx=(3,0))
-        card._file_var = file_var; card._data = {}; card._raw = ""
+                  command=lambda t=tag: self._pick_rcp_file(card, t)).pack(side="left", padx=(3,0))
+        card._file_var = file_var; card._data = {}; card._raw = ""; card._tag = tag
         return card
 
     def _pick_rcp_file(self, card, tag):
@@ -751,25 +788,28 @@ class ReportApp(tk.Tk):
         card._raw  = raw
         card._data = parse_rcp_text(raw)
         card._file_var.set(os.path.basename(path))
-        if tag == "golden": self.golden_data = card._data
-        else:               self.issue_data  = card._data
+        if   tag == "golden": self.golden_data = card._data
+        elif tag == "qc":     self.qc_data     = card._data
+        else:                 self.issue_data  = card._data
 
     def _run_compare(self):
-        if not self.golden_data and not self.issue_data:
+        if not (self.golden_data or self.qc_data or self.issue_data):
             messagebox.showwarning("Notice", "Please load at least one RCP file."); return
-        rows = diff_dicts(self.golden_data, self.issue_data)
+        sources = [("golden", self.golden_data), ("qc", self.qc_data), ("issue", self.issue_data)]
+        rows = diff_multi(sources)
         for w in self.diff_frame.winfo_children(): w.destroy()
-        active  = [r for r in rows if r[3] != "empty"]
-        n_match = sum(1 for r in active if r[3]=="match")
-        n_miss  = sum(1 for r in active if r[3]=="mismatch")
+        active  = [r for r in rows if r[2] != "empty"]
+        n_match = sum(1 for r in active if r[2]=="match")
+        n_miss  = sum(1 for r in active if r[2]=="mismatch")
         self.compare_status_match.configure(text=f"● {n_match} Match")
         self.compare_status_miss.configure(text=f"● {n_miss} Mismatch")
-        for i, (key, g_val, i_val, status) in enumerate(rows):
+        val_cols = (4, 6, 8)   # grid columns for golden / qc / issue
+        for i, (key, vals, status) in enumerate(rows):
             bg = BG_CARD if i%2==0 else BG_LIGHT
-            if status=="match":    dot_c,g_fg,i_fg = DOT_GREEN,TEXT_DARK,TEXT_DARK
-            elif status=="mismatch": dot_c,g_fg,i_fg,bg = DOT_RED,TEXT_DARK,DOT_RED,DIFF_DEL
-            elif status in ("only_issue","only_golden"): dot_c,g_fg,i_fg = DOT_YELLOW,TEXT_MUTED,TEXT_MUTED
-            else: dot_c,g_fg,i_fg = TEXT_MUTED,TEXT_MUTED,TEXT_MUTED
+            if   status=="match":    dot_c,val_fg = DOT_GREEN, TEXT_DARK
+            elif status=="mismatch": dot_c,val_fg,bg = DOT_RED, DOT_RED, DIFF_DEL
+            elif status=="partial":  dot_c,val_fg = DOT_YELLOW, TEXT_MUTED
+            else:                    dot_c,val_fg = TEXT_MUTED, TEXT_MUTED
             rf = tk.Frame(self.diff_frame, bg=bg); rf.pack(fill="x")
             self._apply_diff_cols(rf)
             tk.Label(rf, text="●", font=("Arial",10), bg=bg, fg=dot_c, padx=4, pady=6).grid(row=0, column=0)
@@ -777,59 +817,66 @@ class ReportApp(tk.Tk):
             tk.Label(rf, text=_field_label(key), font=("Arial",8,"bold"), bg=bg, fg=TEXT_DARK,
                      anchor="w", width=14, padx=6, pady=6).grid(row=0, column=2, sticky="ew")
             tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=3, sticky="ns")
-            _selectable(rf, g_val, ("Courier",8), bg, g_fg).grid(row=0, column=4, sticky="ew", padx=6, pady=4)
-            tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=5, sticky="ns")
-            _selectable(rf, i_val, ("Courier",8), bg, i_fg).grid(row=0, column=6, sticky="ew", padx=6, pady=4)
+            for gcol, val in zip(val_cols, vals):
+                tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=gcol-1, sticky="ns")
+                _selectable(rf, val, ("Courier",8), bg,
+                            val_fg if status=="mismatch" else TEXT_DARK
+                            ).grid(row=0, column=gcol, sticky="ew", padx=6, pady=4)
             tk.Frame(self.diff_frame, bg=BORDER, height=1).pack(fill="x")
 
     # ── 並排 Diff 視窗 ────────────────────────────────────────
     def _show_side_by_side_diff(self):
         g_raw = getattr(self.golden_card, "_raw", "")
+        q_raw = getattr(self.qc_card,     "_raw", "")
         i_raw = getattr(self.issue_card,  "_raw", "")
-        if not g_raw and not i_raw:
+        if not (g_raw or q_raw or i_raw):
             messagebox.showinfo("Notice", "Please load RCP files first."); return
         win = tk.Toplevel(self)
-        win.title("Side-by-Side Diff — Golden vs Issue")
-        win.geometry("1100x720")
+        win.title("Side-by-Side Diff — Golden / QC / Issue")
+        win.geometry("1320x720")
         win.configure(bg=BG_DARK)
         hdr = tk.Frame(win, bg=BG_DARK)
         hdr.pack(fill="x")
         tk.Label(hdr, text="Side-by-Side RCP Diff", font=("Arial",13,"bold"), bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=20, pady=10)
-        tk.Label(hdr, text="Yellow = line only on this side  |  Red = lines differ", font=("Arial",9), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
+        tk.Label(hdr, text="Green = line only here  |  Red = differs from Golden (baseline)", font=("Arial",9), bg=BG_DARK, fg=TEXT_MUTED).pack(side="left", padx=4)
         tk.Button(hdr, text="Close", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT, relief="flat",
                   padx=12, pady=5, command=win.destroy).pack(side="right", padx=16, pady=8)
 
         pane = tk.PanedWindow(win, orient="horizontal", bg=BG_DARK, sashwidth=4, sashrelief="flat")
         pane.pack(fill="both", expand=True, padx=8, pady=8)
 
-        g_lines = (g_raw or "").splitlines()
-        i_lines = (i_raw or "").splitlines()
-        max_len = max(len(g_lines), len(i_lines))
-        g_lines += [""] * (max_len - len(g_lines))
-        i_lines += [""] * (max_len - len(i_lines))
+        cols = [("GOLDEN", g_raw, SH_COMPARE, self.golden_card),
+                ("QC",     q_raw, SH_LOG,     self.qc_card),
+                ("ISSUE",  i_raw, "#4A3028",  self.issue_card)]
+        all_lines = [(raw or "").splitlines() for _, raw, _, _ in cols]
+        max_len = max((len(l) for l in all_lines), default=0)
+        for l in all_lines:
+            l += [""] * (max_len - len(l))
+        base_lines = all_lines[0]   # Golden is the baseline every pane compares against
 
-        def _make_diff_pane(title, lines, other_lines, color):
+        def _make_diff_pane(title, lines, is_base):
             f = tk.Frame(pane, bg=BG_DARK)
-            tk.Label(f, text=title, font=("Arial",10,"bold"), bg=color, fg=TEXT_LIGHT, pady=6).pack(fill="x")
+            tk.Label(f, text=title, font=("Arial",10,"bold"), bg=SH_COMPARE, fg=TEXT_LIGHT, pady=6).pack(fill="x")
             txt = scrolledtext.ScrolledText(f, font=("Courier",9), bg=LOG_BG, fg=LOG_FG,
                                              relief="flat", wrap="none", padx=8, pady=6, state="normal")
             txt.pack(fill="both", expand=True)
-            txt.tag_configure("diff",   background="#3B2A1A", foreground="#F0B755")
+            txt.tag_configure("diff",   background="#3B1A1A", foreground="#FCA5A5")
             txt.tag_configure("add",    background="#1A3020", foreground="#86EFAC")
             txt.tag_configure("empty",  background="#1A2030", foreground="#475569")
-            for ln, (line, other) in enumerate(zip(lines, other_lines), 1):
+            for ln, line in enumerate(lines, 1):
+                other = base_lines[ln-1]
                 prefix = f"{ln:4d} │ "
-                if line == other:   tag = ""
-                elif line == "":    tag = "empty"
-                elif other == "":   tag = "add"
-                else:               tag = "diff"
+                if is_base or line == other: tag = ""
+                elif line == "":             tag = "empty"
+                elif other == "":            tag = "add"
+                else:                        tag = "diff"
                 txt.insert("end", prefix + line + "\n", tag)
             txt.configure(state="disabled")
             return f
 
-        g_pane = _make_diff_pane(f"GOLDEN: {self.golden_card._file_var.get()}", g_lines, i_lines, SH_COMPARE)
-        i_pane = _make_diff_pane(f"ISSUE:  {self.issue_card._file_var.get()}",  i_lines, g_lines, "#4A3028")
-        pane.add(g_pane); pane.add(i_pane)
+        for idx, (name, raw, color, card) in enumerate(cols):
+            title = f"{name}: {card._file_var.get()}"
+            pane.add(_make_diff_pane(title, all_lines[idx], is_base=(idx == 0)))
 
     # ── 報案資訊 panel ────────────────────────────────────────
     def _build_screenshot_panel(self, parent):
@@ -1400,15 +1447,18 @@ class ReportApp(tk.Tk):
             "tags":  tags,
             "images":       list(self.report_images),
             "golden":       dict(self.golden_data),
+            "qc":           dict(self.qc_data),
             "issue":        dict(self.issue_data),
             "golden_file":  self.golden_card._file_var.get(),
+            "qc_file":      self.qc_card._file_var.get(),
             "issue_file":   self.issue_card._file_var.get(),
             "log_file":     self.log_filename,
             "log_hits":     list(self.log_hits),
             "log_keywords": hit_kws,
         }
         for field in RCP_FIELDS:
-            record[field] = self.issue_data.get(field) or self.golden_data.get(field) or "—"
+            record[field] = (self.issue_data.get(field) or self.qc_data.get(field)
+                             or self.golden_data.get(field) or "—")
         self.issue_records.append(record)
         save_records(self.issue_records)
         self._refresh_issue_list()
@@ -1766,21 +1816,23 @@ class ReportApp(tk.Tk):
         tbl.pack(fill="x", padx=pad, pady=(0,12))
         th = tk.Frame(tbl, bg=BG_DARK); th.pack(fill="x")
         tk.Label(th, text="", bg=BG_DARK, width=2, padx=4, pady=5).pack(side="left")
-        for t,w in [("Field",18),("Golden Value",22),("Issue Value",22)]:
+        for t,w in [("Field",16),("Golden Value",16),("QC Value",16),("Issue Value",16)]:
             tk.Label(th, text=t, font=("Arial",9,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                      anchor="w", width=w, padx=8, pady=5).pack(side="left")
-        for j, (field, g_val, i_val, status) in enumerate(diff_dicts(rec["golden"], rec["issue"])):
+        sources = [("golden", rec.get("golden", {})), ("qc", rec.get("qc", {})),
+                   ("issue", rec.get("issue", {}))]
+        for j, (field, vals, status) in enumerate(diff_multi(sources)):
             bg = BG_CARD if j%2==0 else BG_LIGHT
-            dot_c = DOT_GREEN if status=="match" else (DOT_RED if status=="mismatch" else TEXT_MUTED)
-            i_fg  = DOT_RED if status=="mismatch" else TEXT_DARK
+            dot_c = DOT_GREEN if status=="match" else (DOT_RED if status=="mismatch"
+                    else (DOT_YELLOW if status=="partial" else TEXT_MUTED))
+            v_fg  = DOT_RED if status=="mismatch" else TEXT_DARK
             if status=="mismatch": bg = DIFF_DEL
             rf = tk.Frame(tbl, bg=bg); rf.pack(fill="x")
             tk.Label(rf, text="●", font=("Arial",11), bg=bg, fg=dot_c, padx=6, pady=6).pack(side="left")
-            tk.Label(rf, text=field, font=("Arial",9,"bold"), bg=bg, fg=TEXT_DARK, width=18, anchor="w", padx=4, pady=6).pack(side="left")
-            tk.Frame(rf, bg=BORDER, width=1).pack(side="left", fill="y")
-            _selectable(rf, g_val, ("Courier",9), bg, TEXT_DARK).pack(side="left", padx=8, pady=4, fill="x", expand=True)
-            tk.Frame(rf, bg=BORDER, width=1).pack(side="left", fill="y")
-            _selectable(rf, i_val, ("Courier",9), bg, i_fg).pack(side="left", padx=8, pady=4, fill="x", expand=True)
+            tk.Label(rf, text=field, font=("Arial",9,"bold"), bg=bg, fg=TEXT_DARK, width=16, anchor="w", padx=4, pady=6).pack(side="left")
+            for val in vals:
+                tk.Frame(rf, bg=BORDER, width=1).pack(side="left", fill="y")
+                _selectable(rf, val, ("Courier",9), bg, v_fg).pack(side="left", padx=8, pady=4, fill="x", expand=True)
             tk.Frame(tbl, bg=BORDER, height=1).pack(fill="x")
 
         # Issue description — use Text so it wraps and is selectable

@@ -781,7 +781,7 @@ class ReportApp(tk.Tk):
 
     def _pick_rcp_file(self, card, tag):
         path = filedialog.askopenfilename(title=f"Select {tag.upper()} RCP File",
-                                          filetypes=[("Text files","*.txt"),("All files","*.*")])
+                                          filetypes=[("RCP files","*.001 *.txt"),("All files","*.*")])
         if not path: return
         try:    raw = open(path, "r", encoding="utf-8-sig").read()
         except: raw = open(path, "r", encoding="big5", errors="replace").read()

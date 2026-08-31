@@ -109,7 +109,7 @@ def save_records(records):
     serial = []
     for rec in records:
         r = {k: v for k, v in rec.items() if k != "images"}
-        r["log_hits"] = [[ln, line, kws] for ln, line, kws in rec.get("log_hits", [])]
+        r["log_hits"] = [list(h) for h in rec.get("log_hits", [])]
         imgs = []
         for name, img in rec.get("images", []):
             try: imgs.append({"name": name, "data": _img_to_b64(img)})
@@ -132,8 +132,14 @@ def load_records():
             imgs = [(e["name"], _b64_to_img(e["data"]))
                     for e in r.get("images", []) if "name" in e and "data" in e]
             r["images"] = imgs
-            r["log_hits"] = [(int(ln), line, kws)
-                             for ln, line, kws in r.get("log_hits", [])]
+            fixed_hits = []
+            for h in r.get("log_hits", []):
+                h = list(h)
+                if len(h) == 4:    # (fname, lineno, line, kws)
+                    h[1] = int(h[1]); fixed_hits.append(tuple(h))
+                elif len(h) == 3:  # legacy (lineno, line, kws)
+                    h[0] = int(h[0]); fixed_hits.append(tuple(h))
+            r["log_hits"] = fixed_hits
             out.append(r)
         return out
     except Exception as e:
@@ -261,6 +267,8 @@ def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):
     ref_year  = scan_start.year if use_range else datetime.now().year
     hits, all_lines, in_range, skipped = [], [], 0, 0
     last_ts = None  # carry timestamp for continuation lines
+    # pre-lower keywords for case-insensitive matching
+    kw_pairs = [(kw, kw.lower()) for kw in keywords]
     for lineno, line in enumerate(text.splitlines(), 1):
         ts = _parse_log_ts(line, ref_year)
         if ts is not None:
@@ -270,7 +278,8 @@ def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):
             if effective_ts is None: skipped += 1; continue
             if not (scan_start <= effective_ts <= scan_end): continue
             if ts is not None: in_range += 1  # count only primary lines
-        matched = [kw for kw in keywords if kw in line]
+        line_lower = line.lower()
+        matched = [kw for kw, kwl in kw_pairs if kwl in line_lower]
         all_lines.append((lineno, line, matched))
         if matched: hits.append((lineno, line, matched))
     return hits, all_lines, in_range, skipped
@@ -1372,7 +1381,7 @@ class ReportApp(tk.Tk):
         tk.Button(win, text="Close", font=("Arial",9), bg="#374D65", fg=TEXT_LIGHT,
                   relief="flat", padx=14, pady=5, command=win.destroy).pack(pady=6)
         hit_linenos = {h[-3] for h in self.log_hits}  # lineno is 2nd-from-... index 1 in 4-tuple
-        kw_pattern  = re.compile("|".join(re.escape(k) for k in ISSUE_KEYWORDS))
+        kw_pattern  = re.compile("|".join(re.escape(k) for k in ISSUE_KEYWORDS), re.IGNORECASE)
         all_lines   = self.log_raw_text.splitlines(); total_lines = len(all_lines); CHUNK = 500
         def _insert_chunk(start):
             txt.configure(state="normal")

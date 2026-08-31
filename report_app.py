@@ -265,11 +265,18 @@ def _parse_rcp_dt(s, ref_year):
 def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):
     use_range = scan_start and scan_end
     ref_year  = scan_start.year if use_range else datetime.now().year
+    lines = text.splitlines()
+    # If a time range is requested but NOT A SINGLE line carries a parseable
+    # timestamp, the range can't be applied at all — fall back to scanning every
+    # line so keyword detection still works (otherwise all lines get skipped and
+    # nothing is ever matched).
+    if use_range and not any(_parse_log_ts(l, ref_year) is not None for l in lines):
+        use_range = False
     hits, all_lines, in_range, skipped = [], [], 0, 0
     last_ts = None  # carry timestamp for continuation lines
     # pre-lower keywords for case-insensitive matching
     kw_pairs = [(kw, kw.lower()) for kw in keywords]
-    for lineno, line in enumerate(text.splitlines(), 1):
+    for lineno, line in enumerate(lines, 1):
         ts = _parse_log_ts(line, ref_year)
         if ts is not None:
             last_ts = ts

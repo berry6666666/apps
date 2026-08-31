@@ -243,23 +243,43 @@ def _parse_log_ts(line, ref_year):
 
 def _parse_rcp_dt(s, ref_year):
     s = s.strip()
-    # Formats with explicit year
-    for fmt in ("%Y/%m/%d %H:%M:%S","%Y-%m-%d %H:%M:%S","%Y/%m/%d %H:%M","%Y-%m-%d %H:%M"):
-        try: return datetime.strptime(s, fmt)
-        except: continue
-    # Formats without year (MM/DD HH:MM:SS[.ms]) — assume ref_year
-    m = re.match(r'^(\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2}):(\d{2})(?:\.\d+)?$', s)
+    if not s or s == "—":
+        return None
+    # drop fractional seconds (e.g. "...:14.282") — datetime compare needs none
+    s = re.sub(r'(\d{2}:\d{2}:\d{2})\.\d+', r'\1', s)
+    # Explicit-year numeric / month-name formats
+    fmts = (
+        "%Y/%m/%d %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M", "%Y-%m-%d %H:%M",
+        "%m/%d/%Y %H:%M:%S", "%m-%d-%Y %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%d-%m-%Y %H:%M:%S",
+        "%m/%d/%Y %H:%M",    "%d/%m/%Y %H:%M",
+        "%b %d %Y %H:%M:%S", "%b %d, %Y %H:%M:%S", "%d %b %Y %H:%M:%S",
+        "%b %d %Y %H:%M",    "%b %d, %Y %H:%M",    "%d %b %Y %H:%M",
+        "%b %d %H:%M:%S",    "%b %d, %H:%M:%S",    # month-name, no year
+    )
+    for fmt in fmts:
+        try:
+            dt = datetime.strptime(s, fmt)
+            return dt.replace(year=ref_year) if dt.year == 1900 else dt
+        except ValueError:
+            continue
+    # month-name with comma-no-space day, e.g. "Jun 18,11:13:14"
+    m = re.match(r'^([A-Za-z]{3})\s+(\d{1,2}),?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?$', s)
+    if m:
+        mon = _MONTH_MAP.get(m.group(1).capitalize(), 0)
+        if mon:
+            try:
+                d, h, mi = int(m.group(2)), int(m.group(3)), int(m.group(4))
+                sec = int(m.group(5)) if m.group(5) else 0
+                return datetime(ref_year, mon, d, h, mi, sec)
+            except ValueError: pass
+    # numeric MM/DD (no year) with time
+    m = re.match(r'^(\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$', s)
     if m:
         try:
-            mo, d, h, mi, sec = (int(x) for x in m.groups()[:5])
+            mo, d, h, mi = (int(m.group(i)) for i in range(1, 5))
+            sec = int(m.group(5)) if m.group(5) else 0
             return datetime(ref_year, mo, d, h, mi, sec)
-        except: pass
-    m = re.match(r'^(\d{1,2})[/-](\d{1,2})\s+(\d{1,2}):(\d{2})$', s)
-    if m:
-        try:
-            mo, d, h, mi = (int(x) for x in m.groups())
-            return datetime(ref_year, mo, d, h, mi)
-        except: pass
+        except ValueError: pass
     return None
 
 def scan_log_keywords(text, keywords, scan_start=None, scan_end=None):

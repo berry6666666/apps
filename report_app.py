@@ -235,6 +235,8 @@ _GI_ONLY_FIELDS   = {"RCP NAME", "LOT ID", "RCP MODIFY TIME"}
 _TIME_ORDER_FIELDS = {"RCP SCAN TIME", "SCAN END TIME"}
 
 def _rcp_field_status(key, g, q, i, ref_year):
+    if key == "RAW COUNT":
+        return "none"           # informational only — no pass/fail light
     if key in _GI_ONLY_FIELDS:
         # only Golden vs Issue matters; QC is not considered
         if not g and not i: return "empty"
@@ -406,7 +408,7 @@ def export_html(rec):
         color = "#FDECEC" if status == "mismatch" else ("#F0FFF4" if status == "match"
                 else ("#FFFBEB" if status == "partial" else "#F9FAFB"))
         dot   = "🔴" if status == "mismatch" else ("🟢" if status == "match"
-                else ("🟡" if status == "partial" else "⚪"))
+                else ("🟡" if status == "partial" else ("" if status == "none" else "⚪")))
         vcolor = "#D32F2F" if status == "mismatch" else "#1a1a2e"
         cells = "".join(
             f'<td style="padding:6px 10px;font-family:monospace;font-size:12px;color:{vcolor}">{v or "—"}</td>'
@@ -884,13 +886,15 @@ class ReportApp(tk.Tk):
         val_cols = (4, 6, 8)   # grid columns for golden / qc / issue
         for i, (key, vals, status) in enumerate(rows):
             bg = BG_CARD if i%2==0 else BG_LIGHT
+            dot_char = "●"
             if   status=="match":    dot_c,val_fg = DOT_GREEN, TEXT_DARK
             elif status=="mismatch": dot_c,val_fg,bg = DOT_RED, DOT_RED, DIFF_DEL
             elif status=="partial":  dot_c,val_fg = DOT_YELLOW, TEXT_MUTED
+            elif status=="none":     dot_c,val_fg,dot_char = bg, TEXT_DARK, " "  # no light
             else:                    dot_c,val_fg = TEXT_MUTED, TEXT_MUTED
             rf = tk.Frame(self.diff_frame, bg=bg); rf.pack(fill="x")
             self._apply_diff_cols(rf)
-            tk.Label(rf, text="●", font=("Arial",10), bg=bg, fg=dot_c, padx=4, pady=6).grid(row=0, column=0)
+            tk.Label(rf, text=dot_char, font=("Arial",10), bg=bg, fg=dot_c, padx=4, pady=6).grid(row=0, column=0)
             tk.Frame(rf, bg=BORDER, width=1).grid(row=0, column=1, sticky="ns")
             tk.Label(rf, text=_field_label(key), font=("Arial",8,"bold"), bg=bg, fg=TEXT_DARK,
                      anchor="w", width=14, padx=6, pady=6).grid(row=0, column=2, sticky="ew")
@@ -1922,8 +1926,10 @@ class ReportApp(tk.Tk):
                     else (DOT_YELLOW if status=="partial" else TEXT_MUTED))
             v_fg  = DOT_RED if status=="mismatch" else TEXT_DARK
             if status=="mismatch": bg = DIFF_DEL
+            dot_char = " " if status=="none" else "●"
+            if status=="none": dot_c = bg
             rf = tk.Frame(tbl, bg=bg); rf.pack(fill="x")
-            tk.Label(rf, text="●", font=("Arial",11), bg=bg, fg=dot_c, padx=6, pady=6).pack(side="left")
+            tk.Label(rf, text=dot_char, font=("Arial",11), bg=bg, fg=dot_c, padx=6, pady=6).pack(side="left")
             tk.Label(rf, text=field, font=("Arial",9,"bold"), bg=bg, fg=TEXT_DARK, width=16, anchor="w", padx=4, pady=6).pack(side="left")
             for val in vals:
                 tk.Frame(rf, bg=BORDER, width=1).pack(side="left", fill="y")

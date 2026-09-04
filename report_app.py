@@ -56,8 +56,8 @@ SH_REPORT  = "#2A1F10"
 SH_LOG     = "#1A3A2A"
 
 RCP_FIELDS = [
-    "RCP NAME", "Tool ID", "LOT ID", "RCP MODIFY TIME",
-    "RCP SCAN TIME", "SCAN END TIME", "RAW COUNT",
+    "RCP NAME", "Tool ID", "RCP MODIFY TIME",
+    "RCP SCAN TIME", "SCAN END TIME", "LOT ID", "RAW COUNT",
 ]
 
 _FIELD_LABEL_OVERRIDE = {
@@ -231,11 +231,12 @@ def diff_multi(sources):
 #   RCP SCAN TIME / SCAN END TIME       → green if Golden's and QC's time are at or
 #                                         before the Issue's time (baseline is older)
 #   Tool ID / RAW COUNT / others        → generic: all present values must be equal
-_GI_ONLY_FIELDS   = {"RCP NAME", "LOT ID", "RCP MODIFY TIME"}
+_GI_ONLY_FIELDS   = {"RCP NAME", "RCP MODIFY TIME"}
 _TIME_ORDER_FIELDS = {"RCP SCAN TIME", "SCAN END TIME"}
+_NO_LIGHT_FIELDS   = {"LOT ID", "RAW COUNT"}
 
 def _rcp_field_status(key, g, q, i, ref_year):
-    if key == "RAW COUNT":
+    if key in _NO_LIGHT_FIELDS:
         return "none"           # informational only — no pass/fail light
     if key in _GI_ONLY_FIELDS:
         # only Golden vs Issue matters; QC is not considered

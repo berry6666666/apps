@@ -1041,11 +1041,11 @@ class ReportApp(tk.Tk):
                   activebackground=BG_DARK, activeforeground=TEXT_LIGHT,
                   command=self._open_keyword_editor).pack(side="right", padx=(6,0))
 
-        hit_hdr = tk.Frame(panel, bg=BG_DARK, height=28)
+        hit_hdr = tk.Frame(panel, bg="#E6E9EF", height=28)
         hit_hdr.pack(fill="x", padx=12); hit_hdr.pack_propagate(False)
         tk.Label(hit_hdr, text="Detection Results", font=("Arial", 8, "bold"),
-                 bg=BG_DARK, fg=TEXT_LIGHT).pack(side="left", padx=8, pady=5)
-        self.hit_count_lbl = tk.Label(hit_hdr, text="", font=("Arial", 8, "bold"), bg=BG_DARK, fg=WARNING)
+                 bg="#E6E9EF", fg="#1A1A2E").pack(side="left", padx=8, pady=5)
+        self.hit_count_lbl = tk.Label(hit_hdr, text="", font=("Arial", 8, "bold"), bg="#E6E9EF", fg=WARNING)
         self.hit_count_lbl.pack(side="right", padx=8)
 
         # ── Ctrl+F search bar (hidden by default) ─────────────

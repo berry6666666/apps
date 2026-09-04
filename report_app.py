@@ -1081,27 +1081,28 @@ class ReportApp(tk.Tk):
         self.search_entry.bind("<Shift-Return>", lambda e: self._search_step(-1))
         self.search_entry.bind("<Escape>",       lambda e: self._hide_search())
 
-        log_frame = tk.Frame(panel, bg=LOG_BG)
+        log_frame = tk.Frame(panel, bg="#FFFFFF")
         log_frame.pack(fill="both", expand=True, padx=12, pady=(0,8))
         log_vsb = ttk.Scrollbar(log_frame, orient="vertical")
         log_vsb.pack(side="right", fill="y")
-        self.log_text = tk.Text(log_frame, bg=LOG_BG, fg=LOG_FG,
+        self.log_text = tk.Text(log_frame, bg="#FFFFFF", fg="#1A1A2E",
                                 font=("Courier", 8), wrap="none",
                                 relief="flat", state="normal",
                                 yscrollcommand=log_vsb.set,
                                 highlightthickness=0,
-                                selectbackground="#2A4270",
+                                selectbackground="#BBD6F0",
                                 cursor="xterm")
         log_vsb.configure(command=self.log_text.yview)
         self.log_text.pack(side="left", fill="both", expand=True)
-        self.log_text.tag_configure("hit",          background="#3A2E00", foreground="#FFD600")
-        self.log_text.tag_configure("normal",        background=LOG_BG,    foreground=LOG_FG)
-        self.log_text.tag_configure("lineno",        foreground="#556070")
-        self.log_text.tag_configure("kwtag",         foreground="#E8C468", font=("Arial", 7, "bold"))
-        self.log_text.tag_configure("search_match",  background="#1A5276", foreground="#FFFFFF")
+        # white-background theme: black text, matched keyword on yellow
+        self.log_text.tag_configure("hit",          background="#FFF9E6", foreground="#1A1A2E")
+        self.log_text.tag_configure("normal",        background="#FFFFFF", foreground="#1A1A2E")
+        self.log_text.tag_configure("lineno",        foreground="#94A3B8")
+        self.log_text.tag_configure("kwtag",         foreground="#B7770D", font=("Arial", 7, "bold"))
+        self.log_text.tag_configure("search_match",  background="#BBD6F0", foreground="#000000")
         self.log_text.tag_configure("search_active", background=ACCENT,    foreground="#000000")
-        self.log_text.tag_configure("filehdr",        foreground="#7FB3E0", font=("Courier", 8, "bold"))
-        self.log_text.tag_configure("fileitem",       foreground="#A9C7E8")
+        self.log_text.tag_configure("filehdr",        foreground="#2A4270", font=("Courier", 8, "bold"))
+        self.log_text.tag_configure("fileitem",       foreground="#3A5A7A")
         # matched keyword: yellow background so it stands out within the line
         self.log_text.tag_configure("kwhl",           background="#FFD600", foreground="#000000")
         # keep search highlights above the keyword highlight

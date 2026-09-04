@@ -1102,6 +1102,11 @@ class ReportApp(tk.Tk):
         self.log_text.tag_configure("search_active", background=ACCENT,    foreground="#000000")
         self.log_text.tag_configure("filehdr",        foreground="#7FB3E0", font=("Courier", 8, "bold"))
         self.log_text.tag_configure("fileitem",       foreground="#A9C7E8")
+        # matched keyword: yellow background so it stands out within the line
+        self.log_text.tag_configure("kwhl",           background="#FFD600", foreground="#000000")
+        # keep search highlights above the keyword highlight
+        self.log_text.tag_raise("search_match")
+        self.log_text.tag_raise("search_active")
         # Make read-only but keep selection and copy working:
         # only block the events that actually modify content.
         _noop = lambda e: "break"
@@ -1374,7 +1379,19 @@ class ReportApp(tk.Tk):
             # show filename only in folder mode (otherwise it's redundant)
             label = f"{fname}:{lineno}"[:24].ljust(25) if folder else f"L{lineno:<6}"
             t.insert("end", label, ("lineno",))
-            t.insert("end", line.rstrip()[:200] + kw_str + "\n", (tag,))
+            disp = line.rstrip()[:200]
+            line_start = t.index("end-1c")   # where the line text begins
+            t.insert("end", disp + kw_str + "\n", (tag,))
+            if is_hit:
+                low = disp.lower()
+                for kw in kws:
+                    kwl = kw.lower()
+                    if not kwl: continue
+                    pos = low.find(kwl)
+                    while pos != -1:
+                        t.tag_add("kwhl", f"{line_start}+{pos}c",
+                                          f"{line_start}+{pos+len(kwl)}c")
+                        pos = low.find(kwl, pos + len(kwl))
         next_offset = offset + self._BATCH
         if next_offset < len(lines):
             self.after(10, lambda: self._render_batch(lines, next_offset))

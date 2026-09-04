@@ -226,6 +226,51 @@ def diff_multi(sources):
         rows.append((k, vals, status))
     return rows
 
+# Field-specific RCP comparison rules (Golden / QC / Issue)
+#   RCP NAME / LOT ID / RCP MODIFY TIME → compare Golden vs Issue only, QC ignored
+#   RCP SCAN TIME / SCAN END TIME       → green if Golden's and QC's time are at or
+#                                         before the Issue's time (baseline is older)
+#   Tool ID / RAW COUNT / others        → generic: all present values must be equal
+_GI_ONLY_FIELDS   = {"RCP NAME", "LOT ID", "RCP MODIFY TIME"}
+_TIME_ORDER_FIELDS = {"RCP SCAN TIME", "SCAN END TIME"}
+
+def _rcp_field_status(key, g, q, i, ref_year):
+    if key in _GI_ONLY_FIELDS:
+        # only Golden vs Issue matters; QC is not considered
+        if not g and not i: return "empty"
+        if not g or not i:  return "partial"
+        return "match" if g == i else "mismatch"
+    if key in _TIME_ORDER_FIELDS:
+        i_dt = _parse_rcp_dt(i, ref_year) if i else None
+        if i_dt is None:
+            return "empty" if not (g or q or i) else "partial"
+        checks = []
+        for v in (g, q):
+            if v:
+                dt = _parse_rcp_dt(v, ref_year)
+                if dt is not None:
+                    checks.append(dt <= i_dt)   # Golden/QC at or before Issue
+        if not checks:
+            return "partial"
+        return "match" if all(checks) else "mismatch"
+    # default: every present value must be identical
+    present = [v for v in (g, q, i) if v]
+    if not present:              return "empty"
+    if len(set(present)) != 1:   return "mismatch"
+    if len(present) < 3:         return "partial"
+    return "match"
+
+def diff_rcp(golden, qc, issue, ref_year=None):
+    """Compare Golden / QC / Issue RCPs with the field-specific rules above.
+    Returns rows of (key, [golden, qc, issue], status)."""
+    if ref_year is None:
+        ref_year = datetime.now().year
+    rows = []
+    for k in RCP_FIELDS:
+        g, q, i = golden.get(k, ""), qc.get(k, ""), issue.get(k, "")
+        rows.append((k, [g, q, i], _rcp_field_status(k, g, q, i, ref_year)))
+    return rows
+
 # ─── Log Scanner ─────────────────────────────────────────────
 _LOG_TS_RE = re.compile(r'^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{1,2}:\d{2}:\d{2})(?:\.\d+)?')
 _MONTH_MAP = {"Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
@@ -355,9 +400,7 @@ def scan_log_folder(folder, keywords, scan_start=None, scan_end=None,
 def export_html(rec):
     os.makedirs(EXPORTS_DIR, exist_ok=True)
     fname = os.path.join(EXPORTS_DIR, f"issue_{rec['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html")
-    diff_rows = diff_multi([("golden", rec.get("golden", {})),
-                            ("qc",     rec.get("qc", {})),
-                            ("issue",  rec.get("issue", {}))])
+    diff_rows = diff_rcp(rec.get("golden", {}), rec.get("qc", {}), rec.get("issue", {}))
     diff_html = ""
     for field, vals, status in diff_rows:
         color = "#FDECEC" if status == "mismatch" else ("#F0FFF4" if status == "match"
@@ -831,8 +874,7 @@ class ReportApp(tk.Tk):
     def _run_compare(self):
         if not (self.golden_data or self.qc_data or self.issue_data):
             messagebox.showwarning("Notice", "Please load at least one RCP file."); return
-        sources = [("golden", self.golden_data), ("qc", self.qc_data), ("issue", self.issue_data)]
-        rows = diff_multi(sources)
+        rows = diff_rcp(self.golden_data, self.qc_data, self.issue_data)
         for w in self.diff_frame.winfo_children(): w.destroy()
         active  = [r for r in rows if r[2] != "empty"]
         n_match = sum(1 for r in active if r[2]=="match")
@@ -1873,9 +1915,8 @@ class ReportApp(tk.Tk):
         for t,w in [("Field",16),("Golden Value",16),("QC Value",16),("Issue Value",16)]:
             tk.Label(th, text=t, font=("Arial",9,"bold"), bg=BG_DARK, fg=TEXT_LIGHT,
                      anchor="w", width=w, padx=8, pady=5).pack(side="left")
-        sources = [("golden", rec.get("golden", {})), ("qc", rec.get("qc", {})),
-                   ("issue", rec.get("issue", {}))]
-        for j, (field, vals, status) in enumerate(diff_multi(sources)):
+        for j, (field, vals, status) in enumerate(
+                diff_rcp(rec.get("golden", {}), rec.get("qc", {}), rec.get("issue", {}))):
             bg = BG_CARD if j%2==0 else BG_LIGHT
             dot_c = DOT_GREEN if status=="match" else (DOT_RED if status=="mismatch"
                     else (DOT_YELLOW if status=="partial" else TEXT_MUTED))
